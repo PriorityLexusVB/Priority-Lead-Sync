@@ -1,0 +1,19 @@
+{
+  "name": "lead-notifier",
+  "version": "1.0.0",
+  "description": "Electron app that shows a desktop notification when a new lead is added to Firestore.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "Rob Brasco",
+  "license": "MIT",
+  "dependencies": {
+    "auto-launch": "^5.0.6",
+    "dotenv": "^17.2.1",
+    "electron": "^30.5.1",
+    "electron-store": "^10.1.0",
+    "firebase-admin": "^11.11.1",
+    "play-sound": "^1.1.6"
+  }
+}
