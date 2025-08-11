@@ -35,7 +35,7 @@ const openai = new OpenAI({
 const leadLog = document.getElementById("lead-log");
 
 const playSound = () => {
-  const audio = new Audio("notify.mp3"); // Place sound file in `public/`
+  const audio = new Audio("sounds/notification.mp3");
   audio.play();
 };
 
