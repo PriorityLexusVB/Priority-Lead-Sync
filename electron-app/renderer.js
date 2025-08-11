@@ -31,9 +31,12 @@ const openai = new OpenAI({
 // UI Helpers
 const leadLog = document.getElementById("lead-log");
 
+// Reuse audio object to avoid recreating it on each notification
+const notificationSound = new Audio("sounds/notification.mp3");
+
 const playSound = () => {
-  const audio = new Audio("sounds/notification.mp3");
-  audio.play();
+  notificationSound.currentTime = 0;
+  notificationSound.play();
 };
 
 const notifyLead = (lead) => {
