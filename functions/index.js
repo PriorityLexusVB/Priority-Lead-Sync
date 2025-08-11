@@ -87,9 +87,20 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
     }
 
     await admin.firestore().collection("leads").add(lead);
+
+    // Only mark the email as seen after it has been successfully stored
+    if (
+      typeof client !== "undefined" &&
+      typeof msg !== "undefined" &&
+      msg?.uid
+    ) {
+      await client.messageFlagsAdd(msg.uid, ["\\Seen"]);
+    }
+
     res.status(200).send("✅ Lead received and parsed.");
   } catch (err) {
     console.error("❌ Error handling email lead:", err);
+    // Skipping flagging so the email can be retried later
     res.status(500).send("❌ Failed to process email lead.");
   }
 });
