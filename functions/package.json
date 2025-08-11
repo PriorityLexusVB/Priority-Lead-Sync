@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "test": "node test/smoke.test.js"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "dayjs": "^1.11.13",

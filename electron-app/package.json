@@ -4,7 +4,8 @@
   "description": "Electron app that shows a desktop notification when a new lead is added to Firestore.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "test": "node test/smoke.test.js"
   },
   "author": "Rob Brasco",
   "license": "MIT",
