@@ -1,7 +1,7 @@
 require("dotenv").config();
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { parseStringPromise } = require("xml2js");
+const { XMLParser } = require("fast-xml-parser");
 
 // Optional: verify webhook signatures or authenticate with Gmail API
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
@@ -32,8 +32,13 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
     };
 
     if (/(<adf>|<\?xml)/i.test(bodyText) || (req.headers["content-type"] || "").includes("xml")) {
-      const parsed = await parseStringPromise(bodyText);
-      const prospect = parsed?.adf?.prospect?.[0];
+      const parser = new XMLParser({ ignoreAttributes: false, isArray: () => true });
+      const json = parser.parse(bodyText);
+      if (!json?.adf) {
+        console.error("❌ Parsing error: json.adf not found.");
+        return res.status(400).send("❌ Failed to process email lead.");
+      }
+      const prospect = json.adf.prospect?.[0];
       const customer = prospect?.customer?.[0];
       const contact = customer?.contact?.[0];
 
