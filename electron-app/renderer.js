@@ -6,19 +6,16 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { config } from "dotenv";
 import OpenAI from "openai";
-
-config();
 
 // Firebase config
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
+  apiKey: window.electronAPI.getEnv('FIREBASE_API_KEY'),
+  authDomain: window.electronAPI.getEnv('FIREBASE_AUTH_DOMAIN'),
+  projectId: window.electronAPI.getEnv('FIREBASE_PROJECT_ID'),
+  storageBucket: window.electronAPI.getEnv('FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: window.electronAPI.getEnv('FIREBASE_MESSAGING_SENDER_ID'),
+  appId: window.electronAPI.getEnv('FIREBASE_APP_ID'),
 };
 
 // Init Firebase
@@ -27,7 +24,7 @@ const db = getFirestore(app);
 
 // OpenAI
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: window.electronAPI.getEnv('OPENAI_API_KEY'),
   dangerouslyAllowBrowser: true,
 });
 
