@@ -2,6 +2,7 @@ require("dotenv").config();
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { parseStringPromise } = require("xml2js");
+const { pollAdfInbox } = require("./adfEmailHandler");
 
 // Optional: verify webhook signatures or authenticate with Gmail API
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
@@ -82,3 +83,7 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
   }
 });
 
+
+exports.pollAdfEmails = functions.pubsub.schedule('every 5 minutes').onRun(async () => {
+  await pollAdfInbox();
+});
