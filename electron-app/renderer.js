@@ -87,6 +87,22 @@ const notifyLead = (lead) => {
   }
 };
 
+const notifyUser = (title, body) => {
+  const showNotification = () => {
+    new Notification(title, { body, silent: true });
+  };
+
+  if (Notification.permission === "default") {
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        showNotification();
+      }
+    });
+  } else if (Notification.permission === "granted") {
+    showNotification();
+  }
+};
+
 const logLeadToUI = (lead) => {
   const div = document.createElement("div");
   div.className = "lead-entry";
@@ -107,12 +123,18 @@ const generateReply = async (lead) => {
     ? `Customer wrote: "${lead.comments}". Craft a helpful, concise reply to book an appointment at our Lexus dealership.`
     : `Generate a compelling message to follow up with a customer interested in a ${lead.vehicle}. Include dealership name and suggest a time to come in.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [{ role: "user", content: prompt }],
-  });
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+    });
 
-  return response.choices[0].message.content;
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error("OpenAI API error:", error);
+    notifyUser("AI Reply Error", "Failed to generate AI suggestion.");
+    return null;
+  }
 };
 
 // Live Listener
@@ -128,7 +150,9 @@ onSnapshot(q, async (snapshot) => {
     logLeadToUI(lead);
 
     const aiReply = await generateReply(lead);
-    console.log("✍️ AI Suggestion:", aiReply);
-    showModal(aiReply);
+    if (aiReply) {
+      console.log("✍️ AI Suggestion:", aiReply);
+      showModal(aiReply);
+    }
   }
 });
