@@ -13,7 +13,14 @@ const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = "Leads"; // This must match your sheet tab name exactly (case-sensitive)
 
 async function appendLeadToSheet(lead) {
-  const client = await auth.getClient();
+  let client;
+  try {
+    client = await auth.getClient();
+  } catch (err) {
+    console.error("Failed to authenticate Google client:", err);
+    throw err;
+  }
+
   const sheets = google.sheets({ version: "v4", auth: client });
 
   const resource = {
@@ -28,12 +35,17 @@ async function appendLeadToSheet(lead) {
     ]]
   };
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:G`,
-    valueInputOption: "USER_ENTERED",
-    resource,
-  });
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A:G`,
+      valueInputOption: "USER_ENTERED",
+      resource,
+    });
+  } catch (err) {
+    console.error("Failed to append values to Google Sheet:", err);
+    throw err;
+  }
 }
 
 module.exports = {
