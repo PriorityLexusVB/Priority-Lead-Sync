@@ -1,5 +1,9 @@
+require("dotenv").config();
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+
+// Optional: verify webhook signatures or authenticate with Gmail API
+const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
 
 admin.initializeApp();
 
