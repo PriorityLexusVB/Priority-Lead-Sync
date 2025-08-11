@@ -49,12 +49,24 @@ const notifyLead = (lead) => {
 💬 Comments: ${comments || "None"}
 `;
 
-  new Notification(`🔥 New Lead: ${first_name} ${last_name}`, {
-    body,
-    silent: false,
-  });
+  const showNotification = () => {
+    new Notification(`🔥 New Lead: ${first_name} ${last_name}`, {
+      body,
+      silent: false,
+    });
 
-  playSound();
+    playSound();
+  };
+
+  if (Notification.permission === "default") {
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        showNotification();
+      }
+    });
+  } else if (Notification.permission === "granted") {
+    showNotification();
+  }
 };
 
 const logLeadToUI = (lead) => {
