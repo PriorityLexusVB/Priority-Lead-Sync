@@ -21,10 +21,10 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
     }
 
     let lead = {
-      first_name: "Missing",
-      last_name: "Missing",
-      phone: "Missing",
-      email: "Missing",
+      first_name: null,
+      last_name: null,
+      phone: null,
+      email: null,
       comments: "",
       vehicle: "",
       trade: "",
@@ -48,10 +48,10 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
 
       lead = {
         ...lead,
-        first_name: firstName || "Missing",
-        last_name: lastName || "Missing",
-        phone: phone || "Missing",
-        email: email || "Missing",
+        first_name: firstName || null,
+        last_name: lastName || null,
+        phone: phone || null,
+        email: email || null,
         comments,
         vehicle,
         trade
@@ -64,14 +64,21 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
       };
 
       const fullName = getValue("Name");
-      const [firstName = "Missing", lastName = ""] = fullName.split(" ");
-      lead.first_name = firstName || "Missing";
-      lead.last_name = lastName || "Missing";
-      lead.phone = getValue("Phone") || "Missing";
-      lead.email = getValue("Email") || "Missing";
+      const [firstName = "", lastName = ""] = fullName.split(" ");
+      lead.first_name = firstName || null;
+      lead.last_name = lastName || null;
+      lead.phone = getValue("Phone") || null;
+      lead.email = getValue("Email") || null;
       lead.comments = getValue("Comments");
       lead.vehicle = getValue("Vehicle");
       lead.trade = getValue("Trade");
+    }
+
+    const requiredFields = ["first_name", "last_name", "phone", "email"];
+    const missingFields = requiredFields.filter((field) => !lead[field]);
+
+    if (missingFields.length > 0) {
+      return res.status(400).send(`Missing required fields: ${missingFields.join(", ")}`);
     }
 
     await admin.firestore().collection("leads").add(lead);
