@@ -9,7 +9,7 @@ const auth = new google.auth.GoogleAuth({
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
-const SPREADSHEET_ID = "1DfjUU--9m4LOGDLhYV6SvWg1OkDbuZrj1eeapAEV2rU";
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SHEET_NAME = "Leads"; // This must match your sheet tab name exactly (case-sensitive)
 
 async function appendLeadToSheet(lead) {
