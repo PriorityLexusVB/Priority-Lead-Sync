@@ -3,7 +3,7 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-exports.receiveCallDripLead = functions.https.onRequest(async (req, res) => {
+exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
   try {
     console.log("✅ Raw Payload Received:", JSON.stringify(req.body, null, 2));
 
