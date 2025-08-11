@@ -30,6 +30,24 @@ const openai = new OpenAI({
 
 // UI Helpers
 const leadLog = document.getElementById("lead-log");
+const modal = document.getElementById("ai-modal");
+const modalText = document.getElementById("ai-modal-text");
+const closeModal = document.getElementById("close-modal");
+
+closeModal.addEventListener("click", () => {
+  modal.style.display = "none";
+});
+
+window.addEventListener("click", (event) => {
+  if (event.target === modal) {
+    modal.style.display = "none";
+  }
+});
+
+const showModal = (message) => {
+  modalText.textContent = message;
+  modal.style.display = "block";
+};
 
 // Reuse audio object to avoid recreating it on each notification
 const notificationSound = new Audio("sounds/notification.mp3");
@@ -99,8 +117,6 @@ onSnapshot(q, async (snapshot) => {
 
     const aiReply = await generateReply(lead);
     console.log("✍️ AI Suggestion:", aiReply);
-
-    // Optional: display in popup/modal if needed
-    alert(`AI Response:\n${aiReply}`);
+    showModal(aiReply);
   }
 });
