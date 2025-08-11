@@ -1,53 +1,80 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { parseStringPromise } = require("xml2js");
 
 admin.initializeApp();
 
-exports.receiveCallDripLead = functions.https.onRequest(async (req, res) => {
+exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
   try {
-    console.log("✅ Raw Payload Received:", JSON.stringify(req.body, null, 2));
+    let bodyText = "";
 
-    let data = {};
-
-    // Detect common formats
-    if (req.body.lead) {
-      data = req.body.lead;
-    } else if (req.body) {
-      data = req.body;
-    } else {
-      throw new Error("❌ No recognizable lead data.");
+    if (typeof req.body === "string") {
+      bodyText = req.body;
+    } else if (req.body && req.body.text) {
+      bodyText = req.body.text;
+    } else if (req.rawBody) {
+      bodyText = req.rawBody.toString();
     }
 
-    const {
-      first_name,
-      last_name,
-      phone,
-      phone_number, // fallback if it's named this
-      email,
-      comments,
-      vehicle,
-      trade
-    } = data;
-
-    const leadData = {
-      first_name: first_name || "Missing",
-      last_name: last_name || "Missing",
-      phone: phone || phone_number || "Missing",
-      email: email || "Missing",
-      comments: comments || "",
-      vehicle: vehicle || "",
-      trade: trade || "",
+    let lead = {
+      first_name: "Missing",
+      last_name: "Missing",
+      phone: "Missing",
+      email: "Missing",
+      comments: "",
+      vehicle: "",
+      trade: "",
       receivedAt: new Date().toISOString()
     };
 
-    console.log("📋 Final Parsed Lead Data:", leadData);
+    if (/(<adf>|<\?xml)/i.test(bodyText) || (req.headers["content-type"] || "").includes("xml")) {
+      const parsed = await parseStringPromise(bodyText);
+      const prospect = parsed?.adf?.prospect?.[0];
+      const customer = prospect?.customer?.[0];
+      const contact = customer?.contact?.[0];
 
-    // Optionally: Write to Firestore for later use
-    await admin.firestore().collection("leads").add(leadData);
+      const name = contact?.name?.[0] || {};
+      const firstName = name.first?.[0] || "";
+      const lastName = name.last?.[0] || "";
+      const email = contact?.email?.[0] || "";
+      const phone = contact?.phone?.[0]?._ || contact?.phone?.[0] || "";
+      const comments = prospect?.comments?.[0] || "";
+      const vehicle = prospect?.vehicle?.[0]?.description?.[0] || "";
+      const trade = prospect?.trade_in?.[0]?.description?.[0] || "";
 
+      lead = {
+        ...lead,
+        first_name: firstName || "Missing",
+        last_name: lastName || "Missing",
+        phone: phone || "Missing",
+        email: email || "Missing",
+        comments,
+        vehicle,
+        trade
+      };
+    } else {
+      const lines = bodyText.split(/\r?\n/);
+      const getValue = (label) => {
+        const line = lines.find((l) => l.toLowerCase().startsWith(label.toLowerCase()));
+        return line ? line.split(":").slice(1).join(":").trim() : "";
+      };
+
+      const fullName = getValue("Name");
+      const [firstName = "Missing", lastName = ""] = fullName.split(" ");
+      lead.first_name = firstName || "Missing";
+      lead.last_name = lastName || "Missing";
+      lead.phone = getValue("Phone") || "Missing";
+      lead.email = getValue("Email") || "Missing";
+      lead.comments = getValue("Comments");
+      lead.vehicle = getValue("Vehicle");
+      lead.trade = getValue("Trade");
+    }
+
+    await admin.firestore().collection("leads").add(lead);
     res.status(200).send("✅ Lead received and parsed.");
   } catch (err) {
-    console.error("❌ Error handling webhook:", err);
-    res.status(500).send("❌ Failed to process webhook.");
+    console.error("❌ Error handling email lead:", err);
+    res.status(500).send("❌ Failed to process email lead.");
   }
 });
+
