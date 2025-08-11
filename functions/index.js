@@ -86,15 +86,20 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
       return res.status(400).send(`Missing required fields: ${missingFields.join(", ")}`);
     }
 
-    await admin.firestore().collection("leads").add(lead);
+    // Store the lead and only mark the message as seen if the write succeeds
+    try {
+      await admin.firestore().collection("leads").add(lead);
 
-    // Only mark the email as seen after it has been successfully stored
-    if (
-      typeof client !== "undefined" &&
-      typeof msg !== "undefined" &&
-      msg?.uid
-    ) {
-      await client.messageFlagsAdd(msg.uid, ["\\Seen"]);
+      if (
+        typeof client !== "undefined" &&
+        typeof msg !== "undefined" &&
+        msg?.uid
+      ) {
+        await client.messageFlagsAdd(msg.uid, ["\\Seen"]);
+      }
+    } catch (error) {
+      console.error("❌ Firestore write failed, message left unflagged:", error);
+      throw error;
     }
 
     res.status(200).send("✅ Lead received and parsed.");
