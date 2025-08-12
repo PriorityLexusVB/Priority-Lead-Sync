@@ -48,29 +48,38 @@ function parseAdfEmail(bodyText = "") {
 // }
 
 function extractLeadFromContact(contact = {}) {
-  // Ensure name is always treated as an array
-  const nameEntries = [];
-  if (contact.name) {
-    if (Array.isArray(contact.name)) {
-      nameEntries.push(...contact.name);
-    } else {
-      nameEntries.push(contact.name);
+  // Helper to normalize fast-xml-parser output into a text value
+  const getText = (value) => {
+    if (Array.isArray(value)) {
+      value = value[0];
     }
-  }
+    if (value && typeof value === "object") {
+      const text = value["#text"];
+      return typeof text === "string" && text.trim() ? text : "Missing";
+    }
+    if (typeof value === "string") {
+      return value.trim() || "Missing";
+    }
+    return "Missing";
+  };
+
+  // Ensure name is always treated as an array
+  const nameEntries = Array.isArray(contact.name)
+    ? contact.name
+    : contact.name
+    ? [contact.name]
+    : [];
 
   // Find the first and last name objects based on the `@_part` attribute
   const firstObj = nameEntries.find((n) => n?.["@_part"] === "first");
   const lastObj = nameEntries.find((n) => n?.["@_part"] === "last");
 
-  const firstName = firstObj?.["#text"] || "";
-  const lastName = lastObj?.["#text"] || "";
+  const firstName = getText(firstObj);
+  const lastName = getText(lastObj);
 
-  // Extract phone and email text content
-  const phoneObj = Array.isArray(contact.phone) ? contact.phone[0] : contact.phone;
-  const emailObj = Array.isArray(contact.email) ? contact.email[0] : contact.email;
-
-  const phone = phoneObj?.["#text"] || "";
-  const email = emailObj?.["#text"] || "";
+  // Extract phone and email text content, falling back to string values
+  const phone = getText(contact.phone);
+  const email = getText(contact.email);
 
   return {
     firstName,
