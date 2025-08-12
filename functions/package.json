@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "node test/smoke.test.js && node test/webhook-secret.test.js"
+    "test": "node test/smoke.test.js && node test/webhook-secret.test.js && node test/body-validation.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
