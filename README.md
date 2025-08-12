@@ -1,10 +1,10 @@
 # Priority Lead Sync
 
-This project collects lead information and stores it in Firebase Firestore and a Google Sheet.
+This project collects lead information and stores it in Firebase Firestore (under the `leads_v2` collection) and a Google Sheet.
 
 ## Cloud Function
 
-The `functions` directory contains a Firebase Cloud Function named `receiveEmailLead`. It accepts an HTTP `POST` request with lead fields such as name, phone, email, comments, vehicle, and trade. The parsed lead is saved to Firestore for later use.
+The `functions` directory contains a Firebase Cloud Function named `receiveEmailLead`. It accepts an HTTP `POST` request with lead fields such as name, phone, email, comments, vehicle, and trade. The parsed lead is saved to the `leads_v2` Firestore collection for later use.
 
 If the write to Firestore fails, the email remains unread so the polling process can automatically retry on a subsequent run.
 
@@ -22,7 +22,7 @@ If the write to Firestore fails, the email remains unread so the polling process
 
 ## Electron Notifier
 
-The `electron-app` directory provides a small Electron application that listens for new leads in Firestore and displays desktop notifications.
+The `electron-app` directory provides a small Electron application that listens for new leads in the `leads_v2` Firestore collection and displays desktop notifications.
 
 ## Environment Variables
 
