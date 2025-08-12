@@ -1,12 +1,10 @@
 require("dotenv").config();
-const functions = require("firebase-functions");
 const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const express = require("express");
 const { XMLParser } = require("fast-xml-parser");
 const { extractLeadFromContact } = require("./adfEmailHandler");
 const { getFirst, getText } = require("./utils");
-const { setSecretOnce } = require("./setSecretOnce");
 
 const app = express();
 app.use(express.text({ type: "*/*", limit: "10mb" }));
@@ -15,16 +13,6 @@ app.use(express.text({ type: "*/*", limit: "10mb" }));
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
 
 admin.initializeApp();
-
-exports.setSecretOnce = functions.https.onRequest((req, res) => {
-  try {
-    setSecretOnce();
-    res.status(200).send("Secret set");
-  } catch (err) {
-    console.error("Error in setSecretOnce:", err);
-    res.status(500).send("Failed to set secret");
-  }
-});
 
 const receiveEmailLeadHandler = async (req, res) => {
   try {
