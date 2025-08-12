@@ -1,7 +1,8 @@
 // preload.js
 
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  getEnv: (key) => process.env[key] || null,
+  getEnv: (key) => (key === 'OPENAI_API_KEY' ? null : process.env[key] || null),
+  generateAIReply: (lead) => ipcRenderer.invoke('generate-ai-reply', lead),
 });

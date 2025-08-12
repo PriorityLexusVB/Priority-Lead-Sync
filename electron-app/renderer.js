@@ -6,7 +6,6 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import OpenAI from "openai";
 
 // Firebase config
 const firebaseConfig = {
@@ -22,11 +21,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// OpenAI
-const openai = new OpenAI({
-  apiKey: window.electronAPI.getEnv('OPENAI_API_KEY'),
-  dangerouslyAllowBrowser: true,
-});
 
 // UI Helpers
 const leadLog = document.getElementById("lead-log");
@@ -119,19 +113,10 @@ const logLeadToUI = (lead) => {
 };
 
 const generateReply = async (lead) => {
-  const prompt = lead.comments
-    ? `Customer wrote: "${lead.comments}". Craft a helpful, concise reply to book an appointment at our Lexus dealership.`
-    : `Generate a compelling message to follow up with a customer interested in a ${lead.vehicle}. Include dealership name and suggest a time to come in.`;
-
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    return response.choices[0].message.content;
+    return await window.electronAPI.generateAIReply(lead);
   } catch (error) {
-    console.error("OpenAI API error:", error);
+    console.error("OpenAI IPC error:", error);
     notifyUser("AI Reply Error", "Failed to generate AI suggestion.");
     return null;
   }
