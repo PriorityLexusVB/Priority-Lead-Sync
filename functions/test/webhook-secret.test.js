@@ -1,17 +1,22 @@
 const assert = require('assert');
+const { createReceiveEmailLeadHandler } = require('../index.js');
 
-process.env.GMAIL_WEBHOOK_SECRET = 'expected-secret';
-const { receiveEmailLead } = require('../index.js');
+const receiveEmailLead = createReceiveEmailLeadHandler({
+  value: () => 'expected-secret',
+});
 
 const run = async (headers) => {
   let statusCode;
+  const req = {
+    get: (name) => headers[name.toLowerCase()],
+  };
   const res = {
     status: (code) => {
       statusCode = code;
       return { send: () => {} };
     },
   };
-  await receiveEmailLead({ headers }, res);
+  await receiveEmailLead(req, res);
   return statusCode;
 };
 
