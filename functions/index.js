@@ -1,3 +1,4 @@
+// Cloud Function for receiving email leads
 const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
