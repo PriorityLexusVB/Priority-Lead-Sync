@@ -1,7 +1,6 @@
 // main.js
 const { app, BrowserWindow, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
-require('dotenv').config(); // ✅ Load .env for Firebase keys
 
 // Ensure required environment variables are present
 const REQUIRED_ENV_VARS = [

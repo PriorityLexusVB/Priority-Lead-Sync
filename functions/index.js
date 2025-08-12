@@ -1,15 +1,17 @@
 const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 
-const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
+const gmailWebhookSecret = defineSecret("GMAIL_WEBHOOK_SECRET");
 
 admin.initializeApp();
 
 const receiveEmailLeadHandler = async (req, res) => {
   try {
+    const secret = gmailWebhookSecret.value();
     if (
       !req.headers["x-webhook-secret"] ||
-      req.headers["x-webhook-secret"] !== gmailWebhookSecret
+      req.headers["x-webhook-secret"] !== secret
     ) {
       return res.status(401).send("Unauthorized");
     }
@@ -43,5 +45,5 @@ const receiveEmailLeadHandler = async (req, res) => {
   }
 };
 
-exports.receiveEmailLead = onRequest(receiveEmailLeadHandler);
+exports.receiveEmailLead = onRequest({ secrets: [gmailWebhookSecret] }, receiveEmailLeadHandler);
 
