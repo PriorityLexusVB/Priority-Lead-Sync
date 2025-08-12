@@ -26,5 +26,27 @@ The `electron-app` directory provides a small Electron application that listens 
 
 ## Environment Variables
 
-Create a `.env` file where necessary and configure values such as `GOOGLE_SHEET_ID` for the Google Sheets integration.
+### Cloud Function (`functions/`)
+
+Refer to [`functions/.env.example`](functions/.env.example) for the full list of variables. Required keys include:
+
+- `GOOGLE_SHEET_ID` – ID of the Google Sheet where leads are stored.
+- `GMAIL_CLIENT_ID` – OAuth client ID for Gmail API access.
+- `GMAIL_CLIENT_SECRET` – OAuth client secret for Gmail API.
+- `GMAIL_REFRESH_TOKEN` – OAuth refresh token to access Gmail.
+- `GMAIL_REDIRECT_URI` – OAuth redirect URI used during Gmail authentication.
+- `GMAIL_WEBHOOK_SECRET` – Secret used to verify incoming Gmail webhooks.
+
+### Electron App (`electron-app/`)
+
+See [`electron-app/.env.example`](electron-app/.env.example) for a sample format. Required keys include:
+
+- `FIREBASE_API_KEY` – Firebase web API key.
+- `FIREBASE_AUTH_DOMAIN` – Firebase authentication domain.
+- `FIREBASE_PROJECT_ID` – Firebase project identifier.
+- `FIREBASE_STORAGE_BUCKET` – Firebase storage bucket name.
+- `FIREBASE_MESSAGING_SENDER_ID` – Firebase messaging sender ID.
+- `FIREBASE_APP_ID` – Firebase application ID.
+- `OPENAI_API_KEY` – API key for OpenAI features.
+- `GOOGLE_SHEET_ID` – ID of the Google Sheet for optional integrations.
 
