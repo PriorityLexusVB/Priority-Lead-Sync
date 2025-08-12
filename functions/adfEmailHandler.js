@@ -3,17 +3,34 @@ const { XMLParser } = require("fast-xml-parser");
 // Parse an entire email body and return the root ADF object.
 // The parser is tolerant of extra text before or after the XML
 // and does not require manual slicing of the message.
+//
+// Example email body structure:
+//   Some intro text...
+//   <adf version="1.0">
+//     <prospect>
+//       <customer>
+//         <contact>
+//           <name part="first">Jane</name>
+//           <name part="last">Doe</name>
+//           <email>jane@example.com</email>
+//         </contact>
+//       </customer>
+//     </prospect>
+//   </adf>
+//   Some footer text...
 function parseAdfEmail(bodyText = "") {
   try {
     const parser = new XMLParser({ ignoreAttributes: false });
     const json = parser.parse(bodyText);
 
     if (!json?.adf) {
+      console.error("❌ Parsing error: json.adf not found.");
       return null;
     }
 
     return json.adf;
   } catch (err) {
+    console.error("❌ Failed to parse ADF email:", err);
     return null;
   }
 }
