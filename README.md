@@ -6,6 +6,8 @@ This project collects lead information and stores it in Firebase Firestore and a
 
 The `functions` directory contains a Firebase Cloud Function named `receiveEmailLead`. It accepts an HTTP `POST` request with lead fields such as name, phone, email, comments, vehicle, and trade. The parsed lead is saved to Firestore for later use.
 
+If the write to Firestore fails, the email remains unread so the polling process can automatically retry on a subsequent run.
+
 ### Deployment
 
 1. Install Firebase CLI and initialize your project.
