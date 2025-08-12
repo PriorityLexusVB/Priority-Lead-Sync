@@ -1,6 +1,6 @@
-require("dotenv").config();
-const functions = require("firebase-functions");
+const functions = require("firebase-functions/v1");
 const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const express = require("express");
 const { XMLParser } = require("fast-xml-parser");
@@ -12,25 +12,27 @@ const app = express();
 app.use(express.text({ type: "*/*", limit: "10mb" }));
 
 // Optional: verify webhook signatures or authenticate with Gmail API
-const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
+const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
 
 admin.initializeApp();
 
-exports.setSecretOnce = functions.https.onRequest((req, res) => {
-  try {
-    setSecretOnce();
-    res.status(200).send("Secret set");
-  } catch (err) {
-    console.error("Error in setSecretOnce:", err);
-    res.status(500).send("Failed to set secret");
-  }
-});
+exports.setSecretOnce = functions
+  .runWith({ secrets: [GMAIL_WEBHOOK_SECRET] })
+  .https.onRequest((req, res) => {
+    try {
+      setSecretOnce(GMAIL_WEBHOOK_SECRET.value());
+      res.status(200).send("Secret set");
+    } catch (err) {
+      console.error("Error in setSecretOnce:", err);
+      res.status(500).send("Failed to set secret");
+    }
+  });
 
 const receiveEmailLeadHandler = async (req, res) => {
   try {
     if (
       !req.headers["x-webhook-secret"] ||
-      req.headers["x-webhook-secret"] !== gmailWebhookSecret
+      req.headers["x-webhook-secret"] !== GMAIL_WEBHOOK_SECRET.value()
     ) {
       return res.status(401).send("Unauthorized");
     }
@@ -126,5 +128,8 @@ const receiveEmailLeadHandler = async (req, res) => {
 
 app.post("/", receiveEmailLeadHandler);
 
-exports.receiveEmailLead = onRequest(receiveEmailLeadHandler);
+exports.receiveEmailLead = onRequest(
+  { secrets: [GMAIL_WEBHOOK_SECRET] },
+  receiveEmailLeadHandler
+);
 

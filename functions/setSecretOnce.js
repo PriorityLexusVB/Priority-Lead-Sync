@@ -1,7 +1,4 @@
-require('dotenv').config();
-
-function setSecretOnce() {
-  const secret = process.env.GMAIL_WEBHOOK_SECRET;
+function setSecretOnce(secret) {
   if (!secret) {
     throw new Error('GMAIL_WEBHOOK_SECRET is not defined');
   }
@@ -11,7 +8,7 @@ function setSecretOnce() {
 }
 
 if (require.main === module) {
-  setSecretOnce();
+  setSecretOnce(process.env.GMAIL_WEBHOOK_SECRET);
 }
 
 module.exports = { setSecretOnce };
