@@ -11,13 +11,32 @@ If the write to Firestore fails, the email remains unread so the polling process
 ### Deployment
 
 1. Install Firebase CLI and initialize your project.
-2. Deploy the function:
+2. Set required secrets in [Secret Manager](https://firebase.google.com/docs/functions/config-env#set_environment_configuration) so they are available to the function:
+   ```bash
+   firebase functions:secrets:set GMAIL_CLIENT_ID
+   firebase functions:secrets:set GMAIL_CLIENT_SECRET
+   firebase functions:secrets:set GMAIL_REFRESH_TOKEN
+   firebase functions:secrets:set GMAIL_REDIRECT_URI
+   firebase functions:secrets:set GMAIL_WEBHOOK_SECRET
+   ```
+3. Deploy the function:
    ```bash
    cd functions
    npm install
    firebase deploy --only functions
    ```
-3. Set up email forwarding to send lead details to the HTTP endpoint exposed by `receiveEmailLead`.
+4. Set up email forwarding to send lead details to the HTTP endpoint exposed by `receiveEmailLead`.
+
+### Testing
+
+To post raw text to the function from Windows, use `curl.exe` and include the `X-Webhook-Secret` header:
+
+```bat
+curl.exe -X POST "https://us-central1-YOUR_PROJECT.cloudfunctions.net/receiveEmailLead" ^
+  -H "Content-Type: text/plain" ^
+  -H "X-Webhook-Secret: YOUR_SECRET" ^
+  --data-raw "name=Jane Doe&email=jane@example.com"
+```
 
 ## Electron Notifier
 
@@ -27,7 +46,7 @@ The `electron-app` directory provides a small Electron application that listens 
 
 ### Cloud Function (`functions/`)
 
-Refer to [`functions/.env.example`](functions/.env.example) for the full list of variables. Required keys include:
+The Cloud Function expects the following secrets, which should be set using `firebase functions:secrets:set` as shown above:
 
 - `GMAIL_CLIENT_ID` – OAuth client ID for Gmail API access.
 - `GMAIL_CLIENT_SECRET` – OAuth client secret for Gmail API.
