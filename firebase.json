@@ -2,9 +2,6 @@
     "functions": {
         "source": "functions",
         "runtime": "nodejs20",
-        "env": {
-            "GOOGLE_SHEET_ID": ""
-        },
         "endpoints": {
             "receiveEmailLead": {}
         }
