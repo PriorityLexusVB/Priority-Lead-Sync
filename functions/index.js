@@ -3,12 +3,7 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { XMLParser } = require("fast-xml-parser");
 const { extractLeadFromContact } = require("./adfEmailHandler");
-
-const getFirst = (prop) => (Array.isArray(prop) ? prop[0] : prop);
-const getText = (prop) => {
-  const val = getFirst(prop);
-  return (val && typeof val === "object") ? (val["#text"] || "") : (val || "");
-};
+const { getFirst, getText } = require("./utils");
 
 // Optional: verify webhook signatures or authenticate with Gmail API
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
