@@ -12,6 +12,13 @@ admin.initializeApp();
 
 exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
   try {
+    if (
+      !req.headers["x-webhook-secret"] ||
+      req.headers["x-webhook-secret"] !== gmailWebhookSecret
+    ) {
+      return res.status(401).send("Unauthorized");
+    }
+
     let bodyText = "";
 
     if (typeof req.body === "string") {
