@@ -6,6 +6,7 @@
     "cors": "^2.8.5",
     "dayjs": "^1.11.13",
     "dotenv": "^17.2.1",
+    "express": "^4",
     "fast-xml-parser": "^5.2.5",
     "firebase-admin": "^13.4.0",
     "firebase-functions": "^6.4.0"
