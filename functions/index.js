@@ -1,10 +1,15 @@
 require("dotenv").config();
 const functions = require("firebase-functions");
+const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const express = require("express");
 const { XMLParser } = require("fast-xml-parser");
 const { extractLeadFromContact } = require("./adfEmailHandler");
 const { getFirst, getText } = require("./utils");
 const { setSecretOnce } = require("./setSecretOnce");
+
+const app = express();
+app.use(express.text({ type: "*/*", limit: "10mb" }));
 
 // Optional: verify webhook signatures or authenticate with Gmail API
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
@@ -21,7 +26,7 @@ exports.setSecretOnce = functions.https.onRequest((req, res) => {
   }
 });
 
-exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
+const receiveEmailLeadHandler = async (req, res) => {
   try {
     if (
       !req.headers["x-webhook-secret"] ||
@@ -117,5 +122,9 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
     console.error("Error handling email lead:", err);
     return res.status(500).send("Internal error");
   }
-});
+};
+
+app.post("/", receiveEmailLeadHandler);
+
+exports.receiveEmailLead = onRequest(receiveEmailLeadHandler);
 
