@@ -45,7 +45,8 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
         console.error("❌ Parsing error: json.adf not found.");
         return res.status(400).send("❌ Failed to process email lead.");
       }
-      const prospect = getFirst(json.adf.prospect);
+      const adf = json.adf;
+      const prospect = getFirst(adf.prospect);
       const customer = getFirst(prospect?.customer);
       const contact = getFirst(customer?.contact);
 
