@@ -87,7 +87,10 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
 
     // Store the lead and only mark the message as seen if the write succeeds
     try {
-      await admin.firestore().collection("leads").add(lead);
+      await admin.firestore().collection("leads_v2").add({
+        ...lead,
+        ingestor: "receiveLead_v2",
+      });
 
       if (
         typeof client !== "undefined" &&

@@ -138,7 +138,7 @@ const generateReply = async (lead) => {
 };
 
 // Live Listener
-const q = query(collection(db, "leads"), orderBy("receivedAt", "desc"));
+const q = query(collection(db, "leads_v2"), orderBy("receivedAt", "desc"));
 
 onSnapshot(q, async (snapshot) => {
   const latest = snapshot.docChanges().filter((change) => change.type === "added");
