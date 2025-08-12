@@ -1,7 +1,9 @@
-require('dotenv').config();
+const { defineSecret } = require("firebase-functions/params");
+
+const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
 
 function setSecretOnce() {
-  const secret = process.env.GMAIL_WEBHOOK_SECRET;
+  const secret = GMAIL_WEBHOOK_SECRET.value();
   if (!secret) {
     throw new Error('GMAIL_WEBHOOK_SECRET is not defined');
   }
