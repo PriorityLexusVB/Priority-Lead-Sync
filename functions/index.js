@@ -95,8 +95,9 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
         await client.messageFlagsAdd(msg.uid, ["\\Seen"]);
       }
     } catch (error) {
-      console.error("❌ Firestore write failed, message left unflagged:", error);
-      throw error;
+      console.error("❌ Firestore write failed:", error);
+      // Skip flagging so the poller can retry
+      return res.status(500).send("❌ Failed to process email lead.");
     }
 
     res.status(200).send("✅ Lead received and parsed.");
