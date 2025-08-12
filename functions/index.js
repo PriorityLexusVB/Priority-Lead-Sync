@@ -2,6 +2,7 @@ require("dotenv").config();
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { XMLParser } = require("fast-xml-parser");
+const { extractLeadFromContact } = require("./adfEmailHandler");
 
 // Optional: verify webhook signatures or authenticate with Gmail API
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
@@ -42,11 +43,7 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
       const customer = prospect?.customer?.[0];
       const contact = customer?.contact?.[0];
 
-      const name = contact?.name?.[0] || {};
-      const firstName = name.first?.[0] || "";
-      const lastName = name.last?.[0] || "";
-      const email = contact?.email?.[0] || "";
-      const phone = contact?.phone?.[0]?._ || contact?.phone?.[0] || "";
+      const { firstName, lastName, phone, email } = extractLeadFromContact(contact || {});
       const comments = prospect?.comments?.[0] || "";
       const vehicle = prospect?.vehicle?.[0]?.description?.[0] || "";
       const trade = prospect?.trade_in?.[0]?.description?.[0] || "";
