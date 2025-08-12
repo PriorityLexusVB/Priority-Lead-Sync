@@ -1,7 +1,7 @@
 require("dotenv").config();
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { XMLParser } = require("fast-xml-parser");
+const { parseAdfEmail, extractLeadFromContact } = require("./adfEmailHandler");
 
 // Optional: verify webhook signatures or authenticate with Gmail API
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
@@ -31,25 +31,48 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
       receivedAt: new Date().toISOString()
     };
 
-    if (/(<adf>|<\?xml)/i.test(bodyText) || (req.headers["content-type"] || "").includes("xml")) {
-      const parser = new XMLParser({ ignoreAttributes: false, isArray: () => true });
-      const json = parser.parse(bodyText);
-      if (!json?.adf) {
-        console.error("❌ Parsing error: json.adf not found.");
-        return res.status(400).send("❌ Failed to process email lead.");
-      }
-      const prospect = json.adf.prospect?.[0];
-      const customer = prospect?.customer?.[0];
-      const contact = customer?.contact?.[0];
+    const adf = parseAdfEmail(bodyText);
+    if (adf) {
+      const prospect = Array.isArray(adf.prospect) ? adf.prospect[0] : adf.prospect;
+      const customer = Array.isArray(prospect?.customer)
+        ? prospect.customer[0]
+        : prospect?.customer;
+      const contact = Array.isArray(customer?.contact)
+        ? customer.contact[0]
+        : customer?.contact;
 
-      const name = contact?.name?.[0] || {};
-      const firstName = name.first?.[0] || "";
-      const lastName = name.last?.[0] || "";
-      const email = contact?.email?.[0] || "";
-      const phone = contact?.phone?.[0]?._ || contact?.phone?.[0] || "";
-      const comments = prospect?.comments?.[0] || "";
-      const vehicle = prospect?.vehicle?.[0]?.description?.[0] || "";
-      const trade = prospect?.trade_in?.[0]?.description?.[0] || "";
+      const { firstName, lastName, phone, email } =
+        extractLeadFromContact(contact || {});
+
+      const commentsVal = Array.isArray(prospect?.comments)
+        ? prospect.comments[0]
+        : prospect?.comments;
+      const comments =
+        typeof commentsVal === "object"
+          ? commentsVal?.["#text"] || ""
+          : commentsVal || "";
+
+      const vehicleObj = Array.isArray(prospect?.vehicle)
+        ? prospect.vehicle[0]
+        : prospect?.vehicle;
+      const vehicleDescVal = Array.isArray(vehicleObj?.description)
+        ? vehicleObj.description[0]
+        : vehicleObj?.description;
+      const vehicle =
+        typeof vehicleDescVal === "object"
+          ? vehicleDescVal?.["#text"] || ""
+          : vehicleDescVal || "";
+
+      const tradeObj = Array.isArray(prospect?.trade_in)
+        ? prospect.trade_in[0]
+        : prospect?.trade_in;
+      const tradeDescVal = Array.isArray(tradeObj?.description)
+        ? tradeObj.description[0]
+        : tradeObj?.description;
+      const trade =
+        typeof tradeDescVal === "object"
+          ? tradeDescVal?.["#text"] || ""
+          : tradeDescVal || "";
 
       lead = {
         ...lead,
@@ -59,7 +82,7 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
         email: email || null,
         comments,
         vehicle,
-        trade
+        trade,
       };
     } else {
       const lines = bodyText.split(/\r?\n/);
