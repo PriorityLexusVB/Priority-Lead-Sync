@@ -1,6 +1,6 @@
 # Priority Lead Sync
 
-This project collects lead information and stores it in Firebase Firestore (under the `leads_v2` collection) and a Google Sheet.
+This project collects lead information and stores it in Firebase Firestore (under the `leads_v2` collection).
 
 ## Cloud Function
 
@@ -18,7 +18,6 @@ If the write to Firestore fails, the email remains unread so the polling process
    firebase deploy --only functions
    ```
 3. Set up email forwarding to send lead details to the HTTP endpoint exposed by `receiveEmailLead`.
-4. Set the `GOOGLE_SHEET_ID` environment variable so leads can also be appended to a Google Sheet.
 
 ## Electron Notifier
 
@@ -30,7 +29,6 @@ The `electron-app` directory provides a small Electron application that listens 
 
 Refer to [`functions/.env.example`](functions/.env.example) for the full list of variables. Required keys include:
 
-- `GOOGLE_SHEET_ID` – ID of the Google Sheet where leads are stored.
 - `GMAIL_CLIENT_ID` – OAuth client ID for Gmail API access.
 - `GMAIL_CLIENT_SECRET` – OAuth client secret for Gmail API.
 - `GMAIL_REFRESH_TOKEN` – OAuth refresh token to access Gmail.
@@ -48,5 +46,4 @@ See [`electron-app/.env.example`](electron-app/.env.example) for a sample format
 - `FIREBASE_MESSAGING_SENDER_ID` – Firebase messaging sender ID.
 - `FIREBASE_APP_ID` – Firebase application ID.
 - `OPENAI_API_KEY` – API key for OpenAI features.
-- `GOOGLE_SHEET_ID` – ID of the Google Sheet for optional integrations.
 
