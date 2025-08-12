@@ -4,6 +4,12 @@ const admin = require("firebase-admin");
 const { XMLParser } = require("fast-xml-parser");
 const { extractLeadFromContact } = require("./adfEmailHandler");
 
+const getFirst = (prop) => (Array.isArray(prop) ? prop[0] : prop);
+const getText = (prop) => {
+  const val = getFirst(prop);
+  return (val && typeof val === "object") ? (val["#text"] || "") : (val || "");
+};
+
 // Optional: verify webhook signatures or authenticate with Gmail API
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
 
@@ -39,14 +45,14 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
         console.error("❌ Parsing error: json.adf not found.");
         return res.status(400).send("❌ Failed to process email lead.");
       }
-      const prospect = json.adf.prospect?.[0];
-      const customer = prospect?.customer?.[0];
-      const contact = customer?.contact?.[0];
+      const prospect = getFirst(json.adf.prospect);
+      const customer = getFirst(prospect?.customer);
+      const contact = getFirst(customer?.contact);
 
       const { firstName, lastName, phone, email } = extractLeadFromContact(contact || {});
-      const comments = prospect?.comments?.[0] || "";
-      const vehicle = prospect?.vehicle?.[0]?.description?.[0] || "";
-      const trade = prospect?.trade_in?.[0]?.description?.[0] || "";
+      const comments = getText(prospect?.comments);
+      const vehicle = getText(getFirst(prospect?.vehicle)?.description);
+      const trade = getText(getFirst(prospect?.trade_in)?.description);
 
       lead = {
         ...lead,
