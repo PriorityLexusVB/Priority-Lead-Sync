@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 function setSecretOnce() {
   const secret = process.env.GMAIL_WEBHOOK_SECRET;
   if (!secret) {
