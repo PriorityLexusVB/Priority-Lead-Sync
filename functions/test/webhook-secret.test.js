@@ -1,7 +1,10 @@
-const assert = require('assert');
-
 process.env.GMAIL_WEBHOOK_SECRET = 'expected-secret';
+const admin = require('firebase-admin');
 const { receiveEmailLead } = require('../index.js');
+
+afterAll(async () => {
+  await admin.app().delete();
+});
 
 const run = async (headers) => {
   let statusCode;
@@ -15,12 +18,14 @@ const run = async (headers) => {
   return statusCode;
 };
 
-(async () => {
-  const missing = await run({});
-  assert.strictEqual(missing, 401, 'should reject when secret missing');
+describe('receiveEmailLead webhook secret', () => {
+  test('rejects when secret missing', async () => {
+    const missing = await run({});
+    expect(missing).toBe(401);
+  });
 
-  const wrong = await run({ 'x-webhook-secret': 'wrong' });
-  assert.strictEqual(wrong, 401, 'should reject when secret mismatched');
-
-  console.log('Webhook secret tests passed');
-})();
+  test('rejects when secret mismatched', async () => {
+    const wrong = await run({ 'x-webhook-secret': 'wrong' });
+    expect(wrong).toBe(401);
+  });
+});

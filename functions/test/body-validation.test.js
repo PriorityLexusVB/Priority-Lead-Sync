@@ -1,7 +1,10 @@
-const assert = require('assert');
-
 process.env.GMAIL_WEBHOOK_SECRET = 'expected-secret';
+const admin = require('firebase-admin');
 const { receiveEmailLead } = require('../index.js');
+
+afterAll(async () => {
+  await admin.app().delete();
+});
 
 const run = async (body) => {
   let statusCode;
@@ -20,9 +23,9 @@ const run = async (body) => {
   return statusCode;
 };
 
-(async () => {
-  const empty = await run('');
-  assert.strictEqual(empty, 400, 'should reject empty string body');
-
-  console.log('Body validation tests passed');
-})();
+describe('receiveEmailLead body validation', () => {
+  test('rejects empty string body', async () => {
+    const empty = await run('');
+    expect(empty).toBe(400);
+  });
+});
