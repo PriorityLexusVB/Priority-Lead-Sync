@@ -4,11 +4,22 @@ const admin = require("firebase-admin");
 const { XMLParser } = require("fast-xml-parser");
 const { extractLeadFromContact } = require("./adfEmailHandler");
 const { getFirst, getText } = require("./utils");
+const { setSecretOnce } = require("./setSecretOnce");
 
 // Optional: verify webhook signatures or authenticate with Gmail API
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
 
 admin.initializeApp();
+
+exports.setSecretOnce = functions.https.onRequest((req, res) => {
+  try {
+    setSecretOnce();
+    res.status(200).send("Secret set");
+  } catch (err) {
+    console.error("Error in setSecretOnce:", err);
+    res.status(500).send("Failed to set secret");
+  }
+});
 
 exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
   try {
