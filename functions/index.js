@@ -103,31 +103,19 @@ exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
       return res.status(400).send(`Missing required fields: ${missingFields.join(", ")}`);
     }
 
-    // Store the lead and only mark the message as seen if the write succeeds
     try {
       await admin.firestore().collection("leads_v2").add({
         ...lead,
         ingestor: "receiveLead_v2",
       });
-
-      if (
-        typeof client !== "undefined" &&
-        typeof msg !== "undefined" &&
-        msg?.uid
-      ) {
-        await client.messageFlagsAdd(msg.uid, ["\\Seen"]);
-      }
+      return res.status(200).send("OK");
     } catch (error) {
-      console.error("❌ Firestore write failed:", error);
-      // Skip flagging so the poller can retry
-      return res.status(500).send("❌ Failed to process email lead.");
+      console.error("Firestore write failed:", error);
+      return res.status(500).send("Internal error");
     }
-
-    res.status(200).send("✅ Lead received and parsed.");
   } catch (err) {
-    console.error("❌ Error handling email lead:", err);
-    // Skipping flagging so the email can be retried later
-    res.status(500).send("❌ Failed to process email lead.");
+    console.error("Error handling email lead:", err);
+    return res.status(500).send("Internal error");
   }
 });
 
