@@ -1,5 +1,13 @@
 // main.js
-const { app, BrowserWindow, Tray, Menu, nativeImage } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  Tray,
+  Menu,
+  nativeImage,
+  ipcMain,
+} = require('electron');
+const OpenAI = require('openai');
 const path = require('path');
 require('dotenv').config(); // ✅ Load .env for Firebase keys
 
@@ -23,6 +31,24 @@ for (const key of REQUIRED_ENV_VARS) {
 
 let tray = null;
 let win;
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+ipcMain.handle('generate-ai-reply', async (_event, lead) => {
+  const prompt = lead.comments
+    ? `Customer wrote: "${lead.comments}". Craft a helpful, concise reply to book an appointment at our Lexus dealership.`
+    : `Generate a compelling message to follow up with a customer interested in a ${lead.vehicle}. Include dealership name and suggest a time to come in.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+    });
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    return null;
+  }
+});
 
 function createWindow() {
   win = new BrowserWindow({
