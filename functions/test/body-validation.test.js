@@ -24,5 +24,8 @@ const run = async (body) => {
   const empty = await run('');
   assert.strictEqual(empty, 400, 'should reject empty string body');
 
+  const notString = await run({});
+  assert.strictEqual(notString, 400, 'should reject non-string body');
+
   console.log('Body validation tests passed');
 })();

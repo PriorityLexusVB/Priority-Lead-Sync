@@ -7,10 +7,8 @@ admin.initializeApp();
 
 const receiveEmailLeadHandler = async (req, res) => {
   try {
-    if (
-      !req.headers["x-webhook-secret"] ||
-      req.headers["x-webhook-secret"] !== gmailWebhookSecret
-    ) {
+    const secret = req.headers["x-webhook-secret"];
+    if (!secret || secret !== gmailWebhookSecret) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -23,11 +21,12 @@ const receiveEmailLeadHandler = async (req, res) => {
       return res.status(400).send("Body cannot be empty");
     }
 
+    const contentType = req.get("content-type") || null;
     const doc = {
       raw: bodyText,
       receivedAt: admin.firestore.FieldValue.serverTimestamp(),
       source: "gmail-webhook",
-      headers: { contentType: req.get("content-type") || null },
+      headers: { contentType },
     };
 
     try {
