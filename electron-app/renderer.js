@@ -9,12 +9,12 @@ import {
 
 // Firebase config
 const firebaseConfig = {
-  apiKey: window.electronAPI.getEnv('FIREBASE_API_KEY'),
-  authDomain: window.electronAPI.getEnv('FIREBASE_AUTH_DOMAIN'),
-  projectId: window.electronAPI.getEnv('FIREBASE_PROJECT_ID'),
-  storageBucket: window.electronAPI.getEnv('FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: window.electronAPI.getEnv('FIREBASE_MESSAGING_SENDER_ID'),
-  appId: window.electronAPI.getEnv('FIREBASE_APP_ID'),
+  apiKey: window.electronAPI.getEnv('APP_FIREBASE_API_KEY'),
+  authDomain: window.electronAPI.getEnv('APP_FIREBASE_AUTH_DOMAIN'),
+  projectId: window.electronAPI.getEnv('APP_FIREBASE_PROJECT_ID'),
+  storageBucket: window.electronAPI.getEnv('APP_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: window.electronAPI.getEnv('APP_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: window.electronAPI.getEnv('APP_FIREBASE_APP_ID'),
 };
 
 // Init Firebase
