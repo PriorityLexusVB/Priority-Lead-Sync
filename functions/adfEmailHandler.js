@@ -74,16 +74,16 @@ function extractLeadFromContact(contact = {}) {
   const firstObj = nameEntries.find((n) => n?.["@_part"] === "first");
   const lastObj = nameEntries.find((n) => n?.["@_part"] === "last");
 
-  const firstName = getText(firstObj);
-  const lastName = getText(lastObj);
+  const first_name = getText(firstObj);
+  const last_name = getText(lastObj);
 
   // Extract phone and email text content, falling back to string values
   const phone = getText(contact.phone);
   const email = getText(contact.email);
 
   return {
-    firstName,
-    lastName,
+    first_name,
+    last_name,
     phone,
     email,
   };
