@@ -5,6 +5,7 @@ const {
   parseAdfEmail,
   extractLeadFromContact,
 } = require("./adfEmailHandler");
+const OpenAI = require("openai");
 
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
 
@@ -54,4 +55,28 @@ const receiveEmailLeadHandler = async (req, res) => {
 };
 
 exports.receiveEmailLead = onRequest(receiveEmailLeadHandler);
+
+exports.generateAIReply = onRequest(async (req, res) => {
+  try {
+    const { lead } = req.body || {};
+    if (!lead) {
+      return res.status(400).json({ error: "Missing lead" });
+    }
+
+    const prompt = lead.comments
+      ? `Customer wrote: "${lead.comments}". Craft a helpful, concise reply to book an appointment at our Lexus dealership.`
+      : `Generate a compelling message to follow up with a customer interested in a ${lead.vehicle}. Include dealership name and suggest a time to come in.`;
+
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    return res.json({ reply: response.choices[0].message.content });
+  } catch (error) {
+    console.error("OpenAI API error:", error);
+    return res.status(500).send("Internal error");
+  }
+});
 

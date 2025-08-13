@@ -7,7 +7,6 @@ const {
   nativeImage,
   ipcMain,
 } = require('electron');
-const OpenAI = require('openai');
 const path = require('path');
 require('dotenv').config(); // ✅ Load .env for Firebase keys
 
@@ -19,7 +18,6 @@ const REQUIRED_ENV_VARS = [
   'FIREBASE_STORAGE_BUCKET',
   'FIREBASE_MESSAGING_SENDER_ID',
   'FIREBASE_APP_ID',
-  'OPENAI_API_KEY',
 ];
 
 for (const key of REQUIRED_ENV_VARS) {
@@ -31,21 +29,24 @@ for (const key of REQUIRED_ENV_VARS) {
 
 let tray = null;
 let win;
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-ipcMain.handle('generate-ai-reply', async (_event, lead) => {
-  const prompt = lead.comments
-    ? `Customer wrote: "${lead.comments}". Craft a helpful, concise reply to book an appointment at our Lexus dealership.`
-    : `Generate a compelling message to follow up with a customer interested in a ${lead.vehicle}. Include dealership name and suggest a time to come in.`;
-
+ipcMain.handle('fetch-ai-reply', async (_event, lead) => {
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
+    const url = `https://us-central1-${process.env.FIREBASE_PROJECT_ID}.cloudfunctions.net/generateAIReply`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lead }),
     });
-    return response.choices[0].message.content;
+
+    if (!res.ok) {
+      throw new Error(`Request failed with status ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.reply;
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('AI endpoint error:', error);
     return null;
   }
 });
