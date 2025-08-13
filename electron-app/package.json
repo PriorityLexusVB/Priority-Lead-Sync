@@ -5,7 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node test/smoke.test.js"
+    "test": "node test/smoke.test.js",
+    "package-win": "electron-packager . lead-notifier --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.png"
   },
   "author": "Rob Brasco",
   "license": "MIT",
@@ -18,5 +19,8 @@
     "firebase-admin": "^13.4.0",
     "openai": "^4.104.0",
     "play-sound": "^1.1.6"
+  },
+  "devDependencies": {
+    "electron-packager": "^17.1.2"
   }
 }

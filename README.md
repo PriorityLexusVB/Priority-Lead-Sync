@@ -42,6 +42,15 @@ curl.exe -X POST "https://us-central1-YOUR_PROJECT.cloudfunctions.net/receiveEma
 
 The `electron-app` directory provides a small Electron application that listens for new leads in the `leads_v2` Firestore collection and displays desktop notifications.
 
+### Packaging the Electron app for Windows
+
+1. `cd electron-app`
+2. `npm install`
+3. `npm run package-win`
+
+The Windows executable will be created under electron-app/dist/lead-notifier-win32-x64/lead-notifier.exe for sharing.
+
+
 ## Environment Variables
 
 ### Cloud Function (`functions/`)
