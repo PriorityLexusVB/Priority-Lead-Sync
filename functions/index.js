@@ -1,19 +1,25 @@
 // Cloud Function for receiving email leads
+const express = require("express");
 const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const {
   parseAdfEmail,
   extractLeadFromContact,
 } = require("./adfEmailHandler");
 
-const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
+const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 admin.initializeApp();
+
+const app = express();
+app.use(express.text({ type: "*/*", limit: "10mb" }));
 
 const receiveEmailLeadHandler = async (req, res) => {
   try {
     const secret = req.headers["x-webhook-secret"];
-    if (!secret || secret !== gmailWebhookSecret) {
+    if (!secret || secret !== GMAIL_WEBHOOK_SECRET.value()) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -53,5 +59,11 @@ const receiveEmailLeadHandler = async (req, res) => {
   }
 };
 
-exports.receiveEmailLead = onRequest(receiveEmailLeadHandler);
+app.post("*", receiveEmailLeadHandler);
+
+exports.receiveEmailLead = onRequest(
+  { region: "us-central1", secrets: [GMAIL_WEBHOOK_SECRET, OPENAI_API_KEY] },
+  app
+);
+exports.receiveEmailLeadHandler = receiveEmailLeadHandler;
 
