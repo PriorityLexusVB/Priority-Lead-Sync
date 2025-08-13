@@ -1,6 +1,10 @@
 // Cloud Function for receiving email leads
 const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const {
+  parseAdfEmail,
+  extractLeadFromContact,
+} = require("./adfEmailHandler");
 
 const gmailWebhookSecret = process.env.GMAIL_WEBHOOK_SECRET;
 
@@ -29,6 +33,12 @@ const receiveEmailLeadHandler = async (req, res) => {
       source: "gmail-webhook",
       headers: { contentType },
     };
+
+    const adf = parseAdfEmail(bodyText);
+    if (adf?.prospect?.customer?.contact) {
+      const lead = extractLeadFromContact(adf.prospect.customer.contact);
+      Object.assign(doc, lead);
+    }
 
     try {
       await admin.firestore().collection("leads_v2").add(doc);
