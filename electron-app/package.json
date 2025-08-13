@@ -14,6 +14,7 @@
     "dotenv": "^17.2.1",
     "electron": "^37.2.6",
     "electron-store": "^10.1.0",
+    "firebase": "^12.1.0",
     "firebase-admin": "^13.4.0",
     "openai": "^4.104.0",
     "play-sound": "^1.1.6"
