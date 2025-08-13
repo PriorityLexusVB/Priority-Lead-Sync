@@ -41,16 +41,16 @@ const run = async (body) => {
 
   const successStatus = await run(validAdf);
   assert.strictEqual(successStatus, 200, 'should accept valid ADF body');
-  assert.strictEqual(addedDoc.firstName, 'Jane');
-  assert.strictEqual(addedDoc.lastName, 'Doe');
+  assert.strictEqual(addedDoc.first_name, 'Jane');
+  assert.strictEqual(addedDoc.last_name, 'Doe');
   assert.strictEqual(addedDoc.phone, '555-1234');
   assert.strictEqual(addedDoc.email, 'jane@example.com');
 
   const fallbackStatus = await run('Just some text');
   assert.strictEqual(fallbackStatus, 200, 'should accept plain text');
   assert.ok(addedDoc, 'document should be written');
-  assert.strictEqual(addedDoc.firstName, undefined);
-  assert.strictEqual(addedDoc.lastName, undefined);
+  assert.strictEqual(addedDoc.first_name, undefined);
+  assert.strictEqual(addedDoc.last_name, undefined);
   assert.strictEqual(addedDoc.phone, undefined);
   assert.strictEqual(addedDoc.email, undefined);
 

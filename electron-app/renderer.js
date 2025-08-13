@@ -98,15 +98,16 @@ const notifyUser = (title, body) => {
 };
 
 const logLeadToUI = (lead) => {
+  const { first_name, last_name, phone, email, vehicle, trade, comments } = lead;
   const div = document.createElement("div");
   div.className = "lead-entry";
   div.innerHTML = `
-    <h3>${lead.first_name} ${lead.last_name}</h3>
-    <p><strong>Phone:</strong> ${lead.phone}</p>
-    <p><strong>Email:</strong> ${lead.email}</p>
-    <p><strong>Vehicle:</strong> ${lead.vehicle}</p>
-    <p><strong>Trade:</strong> ${lead.trade}</p>
-    <p><strong>Comments:</strong> ${lead.comments || "None"}</p>
+    <h3>${first_name} ${last_name}</h3>
+    <p><strong>Phone:</strong> ${phone}</p>
+    <p><strong>Email:</strong> ${email}</p>
+    <p><strong>Vehicle:</strong> ${vehicle}</p>
+    <p><strong>Trade:</strong> ${trade}</p>
+    <p><strong>Comments:</strong> ${comments || "None"}</p>
     <hr />
   `;
   leadLog.prepend(div);
