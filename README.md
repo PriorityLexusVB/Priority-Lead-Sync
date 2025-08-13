@@ -48,7 +48,7 @@ The `electron-app` directory provides a small Electron application that listens 
 2. `npm install`
 3. `npm run package-win`
 
-The Windows executable will be created under electron-app/dist/lead-notifier-win32-x64/lead-notifier.exe for sharing.
+After running `npm run package-win`, the executable is located at `dist/lead-notifier-win32-x64/lead-notifier.exe` within the `electron-app` directory.
 
 
 ## Environment Variables
