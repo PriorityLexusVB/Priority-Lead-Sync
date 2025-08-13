@@ -11,12 +11,8 @@ If the write to Firestore fails, the email remains unread so the polling process
 ### Deployment
 
 1. Install Firebase CLI and initialize your project.
-2. Set required secrets in [Secret Manager](https://firebase.google.com/docs/functions/config-env#set_environment_configuration) so they are available to the function:
+2. Set the webhook secret in [Secret Manager](https://firebase.google.com/docs/functions/config-env#set_environment_configuration) so it is available to the function:
    ```bash
-   firebase functions:secrets:set GMAIL_CLIENT_ID
-   firebase functions:secrets:set GMAIL_CLIENT_SECRET
-   firebase functions:secrets:set GMAIL_REFRESH_TOKEN
-   firebase functions:secrets:set GMAIL_REDIRECT_URI
    firebase functions:secrets:set GMAIL_WEBHOOK_SECRET
    ```
 3. Deploy the function:
@@ -26,6 +22,10 @@ If the write to Firestore fails, the email remains unread so the polling process
    firebase deploy --only functions
    ```
 4. Set up email forwarding to send lead details to the HTTP endpoint exposed by `receiveEmailLead`.
+
+### Gmail Forwarding via Apps Script
+
+Gmail leads are forwarded to the Cloud Function through a Google Apps Script. The script reads incoming messages and posts their raw contents using `msg.getRawContent()` to preserve the original data.
 
 ### Testing
 
@@ -55,12 +55,8 @@ After running `npm run package-win`, the executable is located at `dist/lead-not
 
 ### Cloud Function (`functions/`)
 
-The Cloud Function expects the following secrets, which should be set using `firebase functions:secrets:set` as shown above:
+The Cloud Function expects the following secret, which should be set using `firebase functions:secrets:set` as shown above:
 
-- `GMAIL_CLIENT_ID` – OAuth client ID for Gmail API access.
-- `GMAIL_CLIENT_SECRET` – OAuth client secret for Gmail API.
-- `GMAIL_REFRESH_TOKEN` – OAuth refresh token to access Gmail.
-- `GMAIL_REDIRECT_URI` – OAuth redirect URI used during Gmail authentication.
 - `GMAIL_WEBHOOK_SECRET` – Secret used to verify incoming Gmail webhooks.
 
 ### Electron App (`electron-app/`)
