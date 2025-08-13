@@ -12,18 +12,20 @@ const path = require('path');
 require('dotenv').config(); // ✅ Load .env for Firebase keys
 
 // Ensure required environment variables are present
+const env = import.meta?.env || process.env;
+
 const REQUIRED_ENV_VARS = [
-  'FIREBASE_API_KEY',
-  'FIREBASE_AUTH_DOMAIN',
-  'FIREBASE_PROJECT_ID',
-  'FIREBASE_STORAGE_BUCKET',
-  'FIREBASE_MESSAGING_SENDER_ID',
-  'FIREBASE_APP_ID',
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID',
   'OPENAI_API_KEY',
 ];
 
 for (const key of REQUIRED_ENV_VARS) {
-  if (!process.env[key]) {
+  if (!env[key]) {
     console.error(`Missing required environment variable: ${key}`);
     process.exit(1);
   }
@@ -31,7 +33,7 @@ for (const key of REQUIRED_ENV_VARS) {
 
 let tray = null;
 let win;
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
 ipcMain.handle('generate-ai-reply', async (_event, lead) => {
   const prompt = lead.comments
@@ -61,7 +63,7 @@ function createWindow() {
     },
   });
 
-  win.loadFile('index.html');
+  win.loadFile(path.join(__dirname, 'dist/index.html'));
   // Uncomment below to show window on launch (optional)
   // win.webContents.openDevTools();
 }

@@ -42,6 +42,13 @@ curl.exe -X POST "https://us-central1-YOUR_PROJECT.cloudfunctions.net/receiveEma
 
 The `electron-app` directory provides a small Electron application that listens for new leads in the `leads_v2` Firestore collection and displays desktop notifications.
 
+### Setup
+
+1. `cd electron-app`
+2. `npm install`
+3. Copy `.env.example` to `.env` and fill in the required keys
+4. `npm start` to build the renderer with Vite and launch Electron
+
 ### Packaging the Electron app for Windows
 
 1. `cd electron-app`
@@ -65,13 +72,13 @@ The Cloud Function expects the following secrets, which should be set using `fir
 
 ### Electron App (`electron-app/`)
 
-The Electron app uses a `.env` file for Firebase and OpenAI configuration. Copy [`electron-app/.env.example`](electron-app/.env.example) to `electron-app/.env` and populate the following keys:
+The Electron app uses a `.env` file for Firebase and OpenAI configuration. Only variables prefixed with `VITE_` are exposed to the renderer. Copy [`electron-app/.env.example`](electron-app/.env.example) to `electron-app/.env` and populate the following keys:
 
-- `FIREBASE_API_KEY` – Firebase web API key.
-- `FIREBASE_AUTH_DOMAIN` – Firebase authentication domain.
-- `FIREBASE_PROJECT_ID` – Firebase project identifier.
-- `FIREBASE_STORAGE_BUCKET` – Firebase storage bucket name.
-- `FIREBASE_MESSAGING_SENDER_ID` – Firebase messaging sender ID.
-- `FIREBASE_APP_ID` – Firebase application ID.
-- `OPENAI_API_KEY` – API key for OpenAI features.
+- `VITE_FIREBASE_API_KEY` – Firebase web API key.
+- `VITE_FIREBASE_AUTH_DOMAIN` – Firebase authentication domain.
+- `VITE_FIREBASE_PROJECT_ID` – Firebase project identifier.
+- `VITE_FIREBASE_STORAGE_BUCKET` – Firebase storage bucket name.
+- `VITE_FIREBASE_MESSAGING_SENDER_ID` – Firebase messaging sender ID.
+- `VITE_FIREBASE_APP_ID` – Firebase application ID.
+- `OPENAI_API_KEY` – API key for OpenAI features (used only in the main process).
 
