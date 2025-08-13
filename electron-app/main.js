@@ -9,16 +9,16 @@ const {
 } = require('electron');
 const OpenAI = require('openai');
 const path = require('path');
-require('dotenv').config(); // ✅ Load .env for Firebase keys
+require('dotenv').config({ path: path.join(__dirname, '.env') }); // ✅ Load .env for Firebase keys
 
 // Ensure required environment variables are present
 const REQUIRED_ENV_VARS = [
-  'FIREBASE_API_KEY',
-  'FIREBASE_AUTH_DOMAIN',
-  'FIREBASE_PROJECT_ID',
-  'FIREBASE_STORAGE_BUCKET',
-  'FIREBASE_MESSAGING_SENDER_ID',
-  'FIREBASE_APP_ID',
+  'APP_FIREBASE_API_KEY',
+  'APP_FIREBASE_AUTH_DOMAIN',
+  'APP_FIREBASE_PROJECT_ID',
+  'APP_FIREBASE_STORAGE_BUCKET',
+  'APP_FIREBASE_MESSAGING_SENDER_ID',
+  'APP_FIREBASE_APP_ID',
   'OPENAI_API_KEY',
 ];
 
