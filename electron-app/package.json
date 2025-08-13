@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node test/smoke.test.js",
-    "package-win": "electron-packager . lead-notifier --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.png"
+    "package-win": "npx @electron/packager . lead-notifier --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.png"
   },
   "author": "Rob Brasco",
   "license": "MIT",
@@ -21,6 +21,6 @@
     "play-sound": "^1.1.6"
   },
   "devDependencies": {
-    "electron-packager": "^17.1.2"
+    "@electron/packager": "^18.0.0"
   }
 }
