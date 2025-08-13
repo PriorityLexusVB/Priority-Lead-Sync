@@ -65,7 +65,7 @@ The Cloud Function expects the following secrets, which should be set using `fir
 
 ### Electron App (`electron-app/`)
 
-See [`electron-app/.env.example`](electron-app/.env.example) for a sample format. Required keys include:
+The Electron app uses a `.env` file for Firebase and OpenAI configuration. Copy [`electron-app/.env.example`](electron-app/.env.example) to `electron-app/.env` and populate the following keys:
 
 - `FIREBASE_API_KEY` – Firebase web API key.
 - `FIREBASE_AUTH_DOMAIN` – Firebase authentication domain.
