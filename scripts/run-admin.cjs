@@ -8,7 +8,6 @@ function fail(msg, err) {
 
 const raw = process.env.GCP_SA_KEY;
 if (!raw) fail('Missing GCP_SA_KEY secret.');
-
 let sa;
 try { sa = JSON.parse(raw); } catch (e) { fail('GCP_SA_KEY is not valid JSON.', e); }
 if (!sa.client_email || !sa.private_key) fail('JSON missing client_email/private_key.');
@@ -16,18 +15,15 @@ if (!sa.client_email || !sa.private_key) fail('JSON missing client_email/private
 try {
   admin.initializeApp({
     credential: admin.credential.cert(sa),
-    projectId: process.env.GOOGLE_CLOUD_PROJECT, // keep this for clarity
+    projectId: process.env.GOOGLE_CLOUD_PROJECT,
   });
 } catch (e) {
-  fail('firebase-admin init failed (check private_key; keep literal \\n line breaks).', e);
+  fail('firebase-admin init failed (check private_key; keep literal \\n).', e);
 }
 
-// Use the 'leads' database (or env override)
 const databaseId = process.env.FIRESTORE_DATABASE_ID || 'leads';
-
 const db = admin.firestore();
-// IMPORTANT: set databaseId BEFORE any reads/writes
-db.settings({ databaseId });
+db.settings({ databaseId }); // target non-default DB immediately
 
 (async () => {
   try {

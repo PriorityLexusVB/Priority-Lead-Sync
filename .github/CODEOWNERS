@@ -1,0 +1,5 @@
+.github/workflows/*  @PriorityLexusVB
+firebase.json        @PriorityLexusVB
+.firebaserc          @PriorityLexusVB
+functions/**         @PriorityLexusVB
+scripts/**           @PriorityLexusVB

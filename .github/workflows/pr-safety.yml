@@ -1,0 +1,61 @@
+name: PR Safety Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install firebase-admin for sanity script
+        run: npm i firebase-admin
+
+      - name: "Firestore sanity (DB: leads)"
+        run: node scripts/run-admin.cjs
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GOOGLE_CLOUD_PROJECT: priority-lead-sync
+          FIRESTORE_DATABASE_ID: leads
+
+      - name: Install Firebase CLI
+        run: npm i -g firebase-tools
+
+      - name: Prepare Functions deps
+        run: |
+          if [ -d functions ]; then
+            cd functions
+            if [ -f package-lock.json ]; then
+              npm ci || npm i
+            else
+              npm i
+            fi
+          fi
+
+      # Hosting preview channel (PR)
+      - name: Hosting preview channel (PR)
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          echo "$GCP_SA_KEY" > $RUNNER_TEMP/gcp-sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/gcp-sa.json"
+          firebase hosting:channel:deploy pr-${{ github.event.pull_request.number }} \
+            --project priority-lead-sync \
+            --non-interactive \
+            --expires 7d | tee preview.txt
+          url=$(grep -Eo 'https://[a-z0-9.-]+' preview.txt | head -n1)
+          [ -n "$url" ] && echo "Preview URL: $url" >> $GITHUB_STEP_SUMMARY

@@ -1,7 +1,7 @@
 name: CI Admin & Deploy
 
 on:
-  workflow_dispatch:        # manually triggered
+  workflow_dispatch:        # manual
   push:
     branches: [ main ]      # deploy on push to main
 
@@ -12,44 +12,74 @@ concurrency:
 jobs:
   ci-admin-deploy:
     runs-on: ubuntu-latest
+    environment: codex   # to read FIREBASE_TOKEN if needed
 
     steps:
-      # 1) Checkout repo
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2) Setup Node
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 3) Install deps (don’t fail if no package.json)
       - name: Install dependencies (optional)
         run: npm ci || true
 
-      # 4) Ensure firebase-admin exists for the script
-      - name: Install firebase-admin
+      - name: Install firebase-admin (for sanity script)
         run: npm i firebase-admin
 
-      # 5) Firestore sanity write via Admin SDK
-      - name: Run Firestore Admin Test
+      - name: Validate service account JSON
+        run: |
+          node -e "
+            const sa = JSON.parse(process.env.GCP_SA_KEY || '{}');
+            if(!sa.client_email || !sa.private_key) throw new Error('Missing client_email/private_key');
+            console.log('Using SA:', sa.client_email);
+            console.log('Private key length:', (sa.private_key||'').length);
+          "
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+
+      - name: "Firestore sanity write (DB: leads)"
         run: node scripts/run-admin.cjs
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GOOGLE_CLOUD_PROJECT: priority-lead-sync
           FIRESTORE_DATABASE_ID: leads
 
-      # 6) Install Firebase CLI
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
 
-      # 7) Install Functions dependencies
-      - name: Install Functions dependencies
-        run: npm ci --prefix functions
+      # Prepare Functions deps so deploy doesn't fail even if lockfile is missing
+      - name: Prepare Functions dependencies
+        run: |
+          if [ -d functions ]; then
+            cd functions
+            if [ -f package-lock.json ]; then
+              npm ci || npm i
+            else
+              npm i
+            fi
+            npm ls express >/dev/null 2>&1 || npm i express
+            npm ls firebase-functions >/dev/null 2>&1 || npm i firebase-functions
+          fi
 
-      # 8) Deploy Functions & Hosting (non-interactive)
-      - name: Deploy to Firebase
-        run: firebase deploy --only functions,hosting --project priority-lead-sync --non-interactive
+      # Prefer SA auth; fall back to FIREBASE_TOKEN from env: codex
+      - name: Deploy Functions & Hosting (non-interactive)
         env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set -e
+          if [ -n "$GCP_SA_KEY" ]; then
+            echo "$GCP_SA_KEY" > $RUNNER_TEMP/gcp-sa.json
+            export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/gcp-sa.json"
+            echo "Using Service Account for deploy."
+            firebase deploy --only functions,hosting --project priority-lead-sync --non-interactive
+          elif [ -n "$FIREBASE_TOKEN" ]; then
+            echo "Using FIREBASE_TOKEN for deploy (deprecated by CLI but accepted here)."
+            firebase deploy --only functions,hosting --project priority-lead-sync --non-interactive
+          else
+            echo "No deploy credentials found. Provide GCP_SA_KEY or FIREBASE_TOKEN."
+            exit 1
+          fi
