@@ -31,6 +31,7 @@ let tray = null;
 let win;
 
 ipcMain.handle('request-ai-reply', async (_event, lead) => {
+  // Forward lead data to Cloud Function that uses server-side OpenAI secret
   const url = `https://us-central1-${process.env.APP_FIREBASE_PROJECT_ID}.cloudfunctions.net/generateAIReply`;
 
   try {
