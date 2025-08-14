@@ -3,7 +3,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 // Only expose explicitly allowed Firebase config variables to the renderer.
-// This frozen list ensures runtime code cannot add more keys.
+// The allow list is frozen so it is immutable at runtime and cannot grow.
 // Any key not in this list returns null to prevent leaking secrets.
 const FIREBASE_ENV_ALLOW_LIST = Object.freeze([
   'APP_FIREBASE_API_KEY',
