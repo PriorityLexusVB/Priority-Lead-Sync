@@ -32,6 +32,10 @@ const receiveEmailLeadHandler = async (req, res) => {
   }
 
   const adf = parseAdfEmail(body);
+  if (!adf) {
+    return res.status(400).send('Invalid ADF body');
+  }
+
   let lead = {};
   const contact = adf?.prospect?.customer?.contact;
   if (contact) {
