@@ -14,18 +14,29 @@ try { sa = JSON.parse(raw); } catch (e) { fail('GCP_SA_KEY is not valid JSON.', 
 if (!sa.client_email || !sa.private_key) fail('JSON missing client_email/private_key.');
 
 try {
-  admin.initializeApp({ credential: admin.credential.cert(sa) });
+  admin.initializeApp({
+    credential: admin.credential.cert(sa),
+    projectId: process.env.GOOGLE_CLOUD_PROJECT, // keep this for clarity
+  });
 } catch (e) {
   fail('firebase-admin init failed (check private_key; keep literal \\n line breaks).', e);
 }
 
+// Use the 'leads' database (or env override)
+const databaseId = process.env.FIRESTORE_DATABASE_ID || 'leads';
+
 const db = admin.firestore();
+// IMPORTANT: set databaseId BEFORE any reads/writes
+db.settings({ databaseId });
 
 (async () => {
   try {
-    await db.collection('ci-checks').doc('last-run').set({ ranAt: new Date().toISOString() });
-    console.log('Firestore write OK');
+    await db.collection('ci-checks').doc('last-run').set({
+      ranAt: new Date().toISOString(),
+      databaseId,
+    });
+    console.log('Firestore write OK to database:', databaseId);
   } catch (e) {
-    fail('Firestore write failed (likely permissions). Grant roles/datastore.user to the SA.', e);
+    fail('Firestore write failed (permissions or database ID).', e);
   }
 })();
