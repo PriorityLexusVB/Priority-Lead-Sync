@@ -1,0 +1,27 @@
+name: CI Admin (Environment Secrets)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-admin:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Firebase Admin script
+        run: node scripts/run-admin.js
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GOOGLE_CLOUD_PROJECT: priority-lead-sync
