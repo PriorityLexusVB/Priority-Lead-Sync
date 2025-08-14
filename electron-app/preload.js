@@ -2,7 +2,8 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Only expose explicitly allowed Firebase config variables to the renderer
+// Only expose explicitly allowed Firebase config variables to the renderer.
+// Any key not in this list returns null to prevent leaking secrets.
 const ALLOWED_ENV_KEYS = new Set([
   'APP_FIREBASE_API_KEY',
   'APP_FIREBASE_AUTH_DOMAIN',
