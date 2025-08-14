@@ -15,9 +15,13 @@ jobs:
         with:
           node-version: 20
 
-      # If there's no root package.json, this won't fail the job
+      # OK if no root package.json
       - name: Install repo deps (optional)
         run: npm ci || true
+
+      # Ensure firebase-admin exists
+      - name: Install firebase-admin
+        run: npm i firebase-admin
 
       # --- Admin SDK sanity check (Firestore write) ---
       - name: Run Firebase Admin script
@@ -26,7 +30,7 @@ jobs:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GOOGLE_CLOUD_PROJECT: priority-lead-sync
 
-      # --- Deploy (requires FIREBASE_TOKEN secret) ---
+      # ---- Optional: Deploy (requires FIREBASE_TOKEN secret) ----
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
 
