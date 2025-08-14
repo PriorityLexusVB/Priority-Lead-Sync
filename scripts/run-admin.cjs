@@ -1,14 +1,38 @@
 const admin = require('firebase-admin');
 
-const raw = process.env.GCP_SA_KEY;
-if (!raw) throw new Error('Missing GCP_SA_KEY secret.');
-let sa;
-try { sa = JSON.parse(raw); } catch { throw new Error('GCP_SA_KEY is not valid JSON.'); }
+function fail(msg, err) {
+  console.error(msg);
+  if (err) console.error(err?.stack || err);
+  process.exit(1);
+}
 
-admin.initializeApp({ credential: admin.credential.cert(sa) });
+const raw = process.env.GCP_SA_KEY;
+if (!raw) fail('Missing GCP_SA_KEY secret. Add it in Settings → Secrets → Actions.');
+
+let sa;
+try {
+  sa = JSON.parse(raw);
+} catch (e) {
+  fail('GCP_SA_KEY is not valid JSON. Paste the full service-account JSON.', e);
+}
+
+if (!sa.client_email || !sa.private_key) {
+  fail('Service account JSON missing client_email or private_key.');
+}
+
+try {
+  admin.initializeApp({ credential: admin.credential.cert(sa) });
+} catch (e) {
+  fail('Failed to initialize firebase-admin. Check private_key formatting (include \\n).', e);
+}
 
 const db = admin.firestore();
+
 (async () => {
-  await db.collection('ci-checks').doc('last-run').set({ ranAt: new Date().toISOString() });
-  console.log('Firestore write OK');
+  try {
+    await db.collection('ci-checks').doc('last-run').set({ ranAt: new Date().toISOString() });
+    console.log('Firestore write OK');
+  } catch (e) {
+    fail('Firestore write failed (likely permissions). Grant roles/datastore.user to the service account.', e);
+  }
 })();
