@@ -115,9 +115,9 @@ const logLeadToUI = (lead) => {
 
 const generateReply = async (lead) => {
   try {
-    return await window.electronAPI.generateAIReply(lead);
+    return await window.electronAPI.requestAIReply(lead);
   } catch (error) {
-    console.error("OpenAI IPC error:", error);
+    console.error("AI endpoint error:", error);
     notifyUser("AI Reply Error", "Failed to generate AI suggestion.");
     return null;
   }
