@@ -1,10 +1,13 @@
 name: CI Admin & Deploy
 
 on:
-  workflow_dispatch: # manually triggered
+  workflow_dispatch:        # manually triggered
   push:
-    branches:
-      - main
+    branches: [ main ]      # deploy on push to main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci-admin-deploy:
@@ -21,11 +24,15 @@ jobs:
         with:
           node-version: 20
 
-      # 3) Install dependencies
-      - name: Install dependencies
-        run: npm ci
+      # 3) Install deps (don’t fail if no package.json)
+      - name: Install dependencies (optional)
+        run: npm ci || true
 
-      # 4) Test Firestore write using Admin SDK
+      # 4) Ensure firebase-admin exists for the script
+      - name: Install firebase-admin
+        run: npm i firebase-admin
+
+      # 5) Firestore sanity write via Admin SDK
       - name: Run Firestore Admin Test
         run: node scripts/run-admin.cjs
         env:
@@ -33,12 +40,12 @@ jobs:
           GOOGLE_CLOUD_PROJECT: priority-lead-sync
           FIRESTORE_DATABASE_ID: leads
 
-      # 5) Install Firebase CLI
+      # 6) Install Firebase CLI
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
 
-      # 6) Deploy Functions & Hosting
+      # 7) Deploy Functions & Hosting (non-interactive)
       - name: Deploy to Firebase
-        run: firebase deploy --only functions,hosting --project priority-lead-sync
+        run: firebase deploy --only functions,hosting --project priority-lead-sync --non-interactive
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
