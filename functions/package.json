@@ -10,5 +10,8 @@
     "express": "^4.19.2",
     "openai": "^5.12.2",
     "fast-xml-parser": "^5.2.5"
+  },
+  "devDependencies": {
+    "supertest": "^6.3.4"
   }
 }
