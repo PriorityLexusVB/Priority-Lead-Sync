@@ -5,7 +5,8 @@ process.env.GMAIL_WEBHOOK_SECRET = 'expected-secret';
 const { emailApp } = require('../index.js');
 
 (async () => {
-  const bigBody = 'a'.repeat(1024 * 1024 + 1);
+  const ONE_MB = 1024 * 1024;
+  const bigBody = 'a'.repeat(ONE_MB + 1);
   const res = await request(emailApp)
     .post('/')
     .set('x-webhook-secret', 'expected-secret')

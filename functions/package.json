@@ -15,6 +15,6 @@
     "openai": "^4.104.0"
   },
   "devDependencies": {
-    "supertest": "^6.3.3"
+    "supertest": "^7.1.3"
   }
 }
