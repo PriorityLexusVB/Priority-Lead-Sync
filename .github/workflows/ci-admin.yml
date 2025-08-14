@@ -1,26 +1,39 @@
-name: CI Admin (Repo Secrets)
+name: CI Admin + Deploy
 on:
   workflow_dispatch:
 
 jobs:
-  run-admin:
+  run-admin-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci || true
+
+      # If there's no root package.json, this won't fail the job
+      - name: Install repo deps (optional)
+        run: npm ci || true
+
+      # --- Admin SDK sanity check (Firestore write) ---
       - name: Run Firebase Admin script
         run: node scripts/run-admin.cjs
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GOOGLE_CLOUD_PROJECT: priority-lead-sync
+
+      # --- Deploy (requires FIREBASE_TOKEN secret) ---
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
-      - run: firebase use priority-lead-sync
-      - run: firebase deploy --only functions,hosting
+
+      - name: Select project
+        run: firebase use priority-lead-sync
+
+      - name: Deploy Functions & Hosting
+        run: firebase deploy --only functions,hosting
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
