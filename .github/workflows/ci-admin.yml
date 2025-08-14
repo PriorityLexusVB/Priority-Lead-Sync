@@ -18,32 +18,30 @@ jobs:
       - name: Install firebase-admin
         run: npm i firebase-admin
 
-      # --- Sanity check the secret (prints client_email) ---
+      # NEW: show if the secret parses and which SA email it's using
       - name: Validate service account JSON
         run: |
           node -e "
-            const sa = JSON.parse(process.env.GCP_SA_KEY || '{}');
-            if(!sa.client_email || !sa.private_key){ throw new Error('Missing client_email/private_key'); }
-            console.log('Using SA:', sa.client_email);
+            try {
+              const sa = JSON.parse(process.env.GCP_SA_KEY || '{}');
+              if(!sa.client_email || !sa.private_key){ throw new Error('Missing client_email/private_key'); }
+              console.log('Using SA:', sa.client_email);
+              console.log('Private key length:', (sa.private_key||'').length);
+            } catch(e){ console.error('BAD GCP_SA_KEY:', e.message); process.exit(1); }
           "
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
-      # --- Admin SDK Firestore write ---
       - name: Run Firebase Admin script
         run: node scripts/run-admin.cjs
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GOOGLE_CLOUD_PROJECT: priority-lead-sync
 
-      # ---- Optional: Deploy (needs FIREBASE_TOKEN) ----
+      # (Optional) Deploy — requires FIREBASE_TOKEN secret
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
-
-      - name: Select project
-        run: firebase use priority-lead-sync
-
-      - name: Deploy Functions & Hosting
-        run: firebase deploy --only functions,hosting
+      - run: firebase use priority-lead-sync
+      - run: firebase deploy --only functions,hosting
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
