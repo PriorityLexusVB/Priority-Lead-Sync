@@ -1,4 +1,4 @@
-name: CI Admin (Environment Secrets)
+name: CI Admin (Repo Secrets)
 
 on:
   workflow_dispatch:
@@ -6,7 +6,6 @@ on:
 jobs:
   run-admin:
     runs-on: ubuntu-latest
-    environment: production
     permissions:
       contents: read
     steps:
