@@ -1,48 +1,44 @@
-name: CI Admin + Deploy
+name: CI Admin & Deploy
+
 on:
-  workflow_dispatch:
+  workflow_dispatch: # manually triggered
+  push:
+    branches:
+      - main
 
 jobs:
-  run-admin-and-deploy:
+  ci-admin-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Setup Node
+    steps:
+      # 1) Checkout repo
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2) Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install firebase-admin
-        run: npm i firebase-admin
+      # 3) Install dependencies
+      - name: Install dependencies
+        run: npm ci
 
-      # NEW: show if the secret parses and which SA email it's using
-      - name: Validate service account JSON
-        run: |
-          node -e "
-            try {
-              const sa = JSON.parse(process.env.GCP_SA_KEY || '{}');
-              if(!sa.client_email || !sa.private_key){ throw new Error('Missing client_email/private_key'); }
-              console.log('Using SA:', sa.client_email);
-              console.log('Private key length:', (sa.private_key||'').length);
-            } catch(e){ console.error('BAD GCP_SA_KEY:', e.message); process.exit(1); }
-          "
-        env:
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Run Firebase Admin script
+      # 4) Test Firestore write using Admin SDK
+      - name: Run Firestore Admin Test
         run: node scripts/run-admin.cjs
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GOOGLE_CLOUD_PROJECT: priority-lead-sync
           FIRESTORE_DATABASE_ID: leads
 
-      # (Optional) Deploy — requires FIREBASE_TOKEN secret
+      # 5) Install Firebase CLI
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
-      - run: firebase use priority-lead-sync
-      - run: firebase deploy --only functions,hosting
+
+      # 6) Deploy Functions & Hosting
+      - name: Deploy to Firebase
+        run: firebase deploy --only functions,hosting --project priority-lead-sync
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
