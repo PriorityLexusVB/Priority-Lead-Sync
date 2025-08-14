@@ -25,7 +25,11 @@ jobs:
       - name: Install firebase-admin for sanity script
         run: npm i firebase-admin
 
+ codex/add-ci/cd-and-firebase-setup-details-emkg71
       - name: "Firestore sanity (DB: leads)"
+
+      - name: Firestore sanity (DB: leads)
+ main
         run: node scripts/run-admin.cjs
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
