@@ -11,13 +11,12 @@ if (!raw) fail('Missing GCP_SA_KEY secret.');
 
 let sa;
 try { sa = JSON.parse(raw); } catch (e) { fail('GCP_SA_KEY is not valid JSON.', e); }
-
 if (!sa.client_email || !sa.private_key) fail('JSON missing client_email/private_key.');
 
 try {
   admin.initializeApp({ credential: admin.credential.cert(sa) });
 } catch (e) {
-  fail('firebase-admin init failed (check private_key formatting, keep \\n in it).', e);
+  fail('firebase-admin init failed (check private_key; keep literal \\n line breaks).', e);
 }
 
 const db = admin.firestore();
