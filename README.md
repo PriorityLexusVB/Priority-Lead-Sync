@@ -61,7 +61,7 @@ The Cloud Function expects the following secret, which should be set using `fire
 
 ### Electron App (`electron-app/`)
 
-The Electron app uses a `.env` file for Firebase and OpenAI configuration. Copy [`electron-app/.env.example`](electron-app/.env.example) to `electron-app/.env` and populate the following keys. Keep this file in the `electron-app/` directory so that only the Electron runtime reads these values:
+The Electron app uses a `.env` file for Firebase configuration. Copy [`electron-app/.env.example`](electron-app/.env.example) to `electron-app/.env` and populate the following keys. Keep this file in the `electron-app/` directory so that only the Electron runtime reads these values:
 
 - `APP_FIREBASE_API_KEY` – Firebase web API key.
 - `APP_FIREBASE_AUTH_DOMAIN` – Firebase authentication domain.
@@ -69,5 +69,4 @@ The Electron app uses a `.env` file for Firebase and OpenAI configuration. Copy 
 - `APP_FIREBASE_STORAGE_BUCKET` – Firebase storage bucket name.
 - `APP_FIREBASE_MESSAGING_SENDER_ID` – Firebase messaging sender ID.
 - `APP_FIREBASE_APP_ID` – Firebase application ID.
-- `OPENAI_API_KEY` – API key for OpenAI features.
 
