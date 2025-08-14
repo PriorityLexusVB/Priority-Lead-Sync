@@ -14,6 +14,7 @@ const FIREBASE_ENV_ALLOW_LIST = Object.freeze([
   'APP_FIREBASE_APP_ID',
 ]);
 
+// Helper to safely read only whitelisted keys from the environment
 const getEnv = (key) =>
   FIREBASE_ENV_ALLOW_LIST.includes(key) ? process.env[key] ?? null : null;
 
