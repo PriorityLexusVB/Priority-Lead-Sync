@@ -15,22 +15,28 @@ jobs:
         with:
           node-version: 20
 
-      # OK if no root package.json
-      - name: Install repo deps (optional)
-        run: npm ci || true
-
-      # Ensure firebase-admin exists
       - name: Install firebase-admin
         run: npm i firebase-admin
 
-      # --- Admin SDK sanity check (Firestore write) ---
+      # --- Sanity check the secret (prints client_email) ---
+      - name: Validate service account JSON
+        run: |
+          node -e "
+            const sa = JSON.parse(process.env.GCP_SA_KEY || '{}');
+            if(!sa.client_email || !sa.private_key){ throw new Error('Missing client_email/private_key'); }
+            console.log('Using SA:', sa.client_email);
+          "
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+
+      # --- Admin SDK Firestore write ---
       - name: Run Firebase Admin script
         run: node scripts/run-admin.cjs
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GOOGLE_CLOUD_PROJECT: priority-lead-sync
 
-      # ---- Optional: Deploy (requires FIREBASE_TOKEN secret) ----
+      # ---- Optional: Deploy (needs FIREBASE_TOKEN) ----
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
 
