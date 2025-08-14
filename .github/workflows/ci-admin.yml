@@ -37,6 +37,7 @@ jobs:
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GOOGLE_CLOUD_PROJECT: priority-lead-sync
+          FIRESTORE_DATABASE_ID: leads
 
       # (Optional) Deploy — requires FIREBASE_TOKEN secret
       - name: Install Firebase CLI
