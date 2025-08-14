@@ -1,4 +1,9 @@
 const assert = require('assert');
+const request = require('supertest');
+const express = require('express');
+
+// Set dummy API key before loading the app
+process.env.OPENAI_API_KEY = 'test-key';
 
 // Stub OpenAI to avoid network calls and capture usage
 let constructorKey;
@@ -9,8 +14,8 @@ class OpenAIStub {
   }
   chat = {
     completions: {
-      create: async (opts) => {
-        capturedPrompt = opts.messages[0].content;
+      create: async ({ messages }) => {
+        capturedPrompt = messages[0].content;
         return { choices: [{ message: { content: 'Test reply' } }] };
       },
     },
@@ -18,24 +23,21 @@ class OpenAIStub {
 }
 require.cache[require.resolve('openai')] = { exports: OpenAIStub };
 
-process.env.OPENAI_API_KEY = 'server-secret';
 const { generateAIReplyHandler } = require('../index.js');
 
+const aiApp = express();
+aiApp.use(express.json());
+aiApp.post('/', generateAIReplyHandler);
+
 (async () => {
-  let jsonResponse;
-  const req = { body: { comments: 'Hello' } };
-  const res = {
-    json: (data) => {
-      jsonResponse = data;
-    },
-    status: (code) => ({ send: () => { throw new Error('Unexpected error ' + code); } }),
-  };
+  const res = await request(aiApp)
+    .post('/')
+    .send({ comments: 'Hello from lead' })
+    .expect(200);
 
-  await generateAIReplyHandler(req, res);
-
-  assert.strictEqual(constructorKey, 'server-secret', 'should use server-side API key');
-  assert.ok(capturedPrompt.includes('Hello'), 'prompt should include lead comments');
-  assert.deepStrictEqual(jsonResponse, { reply: 'Test reply' });
+  assert.strictEqual(constructorKey, 'test-key', 'should use the dummy API key');
+  assert.ok(capturedPrompt.includes('Hello from lead'), 'prompt should include lead comments');
+  assert.deepStrictEqual(res.body, { reply: 'Test reply' });
 
   console.log('generateAIReply tests passed');
 })();
