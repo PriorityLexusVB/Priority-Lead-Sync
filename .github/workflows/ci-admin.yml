@@ -44,7 +44,11 @@ jobs:
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
 
-      # 7) Deploy Functions & Hosting (non-interactive)
+      # 7) Install Functions dependencies
+      - name: Install Functions dependencies
+        run: npm ci --prefix functions
+
+      # 8) Deploy Functions & Hosting (non-interactive)
       - name: Deploy to Firebase
         run: firebase deploy --only functions,hosting --project priority-lead-sync --non-interactive
         env:
