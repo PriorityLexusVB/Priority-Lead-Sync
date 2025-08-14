@@ -49,6 +49,8 @@ const receiveEmailLeadHandler = async (req, res) => {
 app.post('/', receiveEmailLeadHandler);
 
 exports.receiveEmailLeadHandler = receiveEmailLeadHandler;
+// Export the Express app for testing.
+exports.emailApp = app;
 
 exports.receiveEmailLead = onRequest(
   { region: 'us-central1', secrets: [GMAIL_WEBHOOK_SECRET] },
