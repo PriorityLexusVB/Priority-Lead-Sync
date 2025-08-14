@@ -1,5 +1,10 @@
 const assert = require('assert');
 
+// Backup global state before modification
+const originalFetch = global.fetch;
+const originalElectronCache = require.cache[require.resolve('electron')];
+const originalEnv = { ...process.env };
+
 // Stub Electron modules to capture IPC handler
 let registeredHandler;
 const ipcMainStub = {
@@ -46,14 +51,30 @@ global.fetch = async (url, options) => {
 require('../main.js');
 
 (async () => {
-  const lead = { comments: 'Interested' };
-  const result = await registeredHandler(null, lead);
-  assert.strictEqual(
-    fetchArgs.url,
-    'https://us-central1-proj.cloudfunctions.net/generateAIReply'
-  );
-  assert.strictEqual(fetchArgs.options.method, 'POST');
-  assert.deepStrictEqual(JSON.parse(fetchArgs.options.body), lead);
-  assert.strictEqual(result, 'Hi there');
-  console.log('IPC handler test passed');
+  try {
+    const lead = { comments: 'Interested' };
+    const result = await registeredHandler(null, lead);
+    assert.strictEqual(
+      fetchArgs.url,
+      'https://us-central1-proj.cloudfunctions.net/generateAIReply'
+    );
+    assert.strictEqual(fetchArgs.options.method, 'POST');
+    assert.deepStrictEqual(JSON.parse(fetchArgs.options.body), lead);
+    assert.strictEqual(result, 'Hi there');
+    console.log('IPC handler test passed');
+  } finally {
+    // Restore global state
+    global.fetch = originalFetch;
+    if (originalElectronCache) {
+      require.cache[require.resolve('electron')] = originalElectronCache;
+    } else {
+      delete require.cache[require.resolve('electron')];
+    }
+    Object.keys(process.env).forEach((key) => {
+      if (!Object.prototype.hasOwnProperty.call(originalEnv, key)) {
+        delete process.env[key];
+      }
+    });
+    Object.assign(process.env, originalEnv);
+  }
 })();
