@@ -1,3 +1,5 @@
+const express = require('express');
+const { defineSecret } = require('firebase-functions/params');
 const { onRequest } = require('firebase-functions/v2/https');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
@@ -5,14 +7,21 @@ const { parseAdfEmail, extractLeadFromContact } = require('./adfEmailHandler');
 
 admin.initializeApp();
 
+// Define secrets with firebase-functions/params.
+const GMAIL_WEBHOOK_SECRET = defineSecret('GMAIL_WEBHOOK_SECRET');
+const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
+
 exports.helloWorld = onRequest((request, response) => {
   logger.info('Hello logs!', { structuredData: true });
   response.send('Hello from Firebase!');
 });
 
-exports.receiveEmailLead = async (req, res) => {
+const app = express();
+app.use(express.text({ type: '*/*', limit: '1mb' }));
+
+const receiveEmailLeadHandler = async (req, res) => {
   const secret = req.headers['x-webhook-secret'];
-  if (!secret || secret !== process.env.GMAIL_WEBHOOK_SECRET) {
+  if (!secret || secret !== GMAIL_WEBHOOK_SECRET.value()) {
     return res.status(401).send('Unauthorized');
   }
 
@@ -35,3 +44,12 @@ exports.receiveEmailLead = async (req, res) => {
 
   res.status(200).send('OK');
 };
+
+app.post('/', receiveEmailLeadHandler);
+
+exports.receiveEmailLeadHandler = receiveEmailLeadHandler;
+
+exports.receiveEmailLead = onRequest(
+  { region: 'us-central1', secrets: [GMAIL_WEBHOOK_SECRET, OPENAI_API_KEY] },
+  app
+);
