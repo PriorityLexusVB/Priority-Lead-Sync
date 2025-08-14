@@ -3,7 +3,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node test/smoke.test.js && node test/webhook-secret.test.js && node test/body-validation.test.js && node test/adf-parsing.test.js"
+    "test": "node test/smoke.test.js && node test/webhook-secret.test.js && node test/body-validation.test.js && node test/adf-parsing.test.js && node test/generate-ai-reply.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

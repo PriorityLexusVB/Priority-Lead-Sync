@@ -83,6 +83,8 @@ const generateAIReplyHandler = async (req, res) => {
 
 aiApp.post('/', generateAIReplyHandler);
 
+exports.generateAIReplyHandler = generateAIReplyHandler;
+
 exports.generateAIReply = onRequest(
   { region: 'us-central1', secrets: [OPENAI_API_KEY] },
   aiApp
