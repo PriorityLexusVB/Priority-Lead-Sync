@@ -40,11 +40,7 @@ jobs:
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
- codex/add-ci/cd-and-firebase-setup-details-emkg71
       - name: "Firestore sanity write (DB: leads)"
-
-      - name: Firestore sanity write (DB: leads)
- main
         run: node scripts/run-admin.cjs
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
