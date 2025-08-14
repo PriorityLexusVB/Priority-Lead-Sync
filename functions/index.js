@@ -32,6 +32,10 @@ const receiveEmailLeadHandler = async (req, res) => {
   }
 
   const adf = parseAdfEmail(body);
+  if (!adf) {
+    return res.status(400).send('Invalid ADF body');
+  }
+
   let lead = {};
   const contact = adf?.prospect?.customer?.contact;
   if (contact) {
@@ -82,6 +86,8 @@ const generateAIReplyHandler = async (req, res) => {
 };
 
 aiApp.post('/', generateAIReplyHandler);
+
+exports.generateAIReplyHandler = generateAIReplyHandler;
 
 exports.generateAIReply = onRequest(
   { region: 'us-central1', secrets: [OPENAI_API_KEY] },

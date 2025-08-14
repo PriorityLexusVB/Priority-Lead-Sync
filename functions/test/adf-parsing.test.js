@@ -46,13 +46,9 @@ const run = async (body) => {
   assert.strictEqual(addedDoc.phone, '555-1234');
   assert.strictEqual(addedDoc.email, 'jane@example.com');
 
-  const fallbackStatus = await run('Just some text');
-  assert.strictEqual(fallbackStatus, 200, 'should accept plain text');
-  assert.ok(addedDoc, 'document should be written');
-  assert.strictEqual(addedDoc.first_name, undefined);
-  assert.strictEqual(addedDoc.last_name, undefined);
-  assert.strictEqual(addedDoc.phone, undefined);
-  assert.strictEqual(addedDoc.email, undefined);
+  const malformedStatus = await run('Just some text');
+  assert.strictEqual(malformedStatus, 400, 'should reject malformed body');
+  assert.strictEqual(addedDoc, null, 'document should not be written');
 
   console.log('ADF parsing tests passed');
 })();

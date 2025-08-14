@@ -1,10 +1,13 @@
 const assert = require('assert');
 
+codex/update-preload.js-with-allow-list-implementation-xmopb4
 // Backup global state before modification
 const originalFetch = global.fetch;
 const originalElectronCache = require.cache[require.resolve('electron')];
 const originalEnv = { ...process.env };
 
+
+ main
 // Stub Electron modules to capture IPC handler
 let registeredHandler;
 const ipcMainStub = {
@@ -51,6 +54,7 @@ global.fetch = async (url, options) => {
 require('../main.js');
 
 (async () => {
+ codex/update-preload.js-with-allow-list-implementation-xmopb4
   try {
     const lead = { comments: 'Interested' };
     const result = await registeredHandler(null, lead);
@@ -77,4 +81,16 @@ require('../main.js');
     });
     Object.assign(process.env, originalEnv);
   }
+
+  const lead = { comments: 'Interested' };
+  const result = await registeredHandler(null, lead);
+  assert.strictEqual(
+    fetchArgs.url,
+    'https://us-central1-proj.cloudfunctions.net/generateAIReply'
+  );
+  assert.strictEqual(fetchArgs.options.method, 'POST');
+  assert.deepStrictEqual(JSON.parse(fetchArgs.options.body), lead);
+  assert.strictEqual(result, 'Hi there');
+  console.log('IPC handler test passed');
+ main
 })();
