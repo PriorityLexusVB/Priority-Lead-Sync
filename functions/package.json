@@ -1,17 +1,15 @@
 {
-  "name": "functions",
-  "engines": {
-    "node": "20"
-  },
+  "name": "priority-lead-sync-functions",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "20" },
   "main": "index.js",
-  "dependencies": {
-    "firebase-admin": "^12.0.0",
-    "firebase-functions": "^5.0.0",
-    "express": "^4.19.2",
-    "openai": "^5.12.2",
-    "fast-xml-parser": "^5.2.5"
+  "scripts": {
+    "deploy": "firebase deploy --only functions"
   },
-  "devDependencies": {
-    "supertest": "^6.3.4"
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.1.0",
+    "xml2js": "^0.6.2"
   }
 }

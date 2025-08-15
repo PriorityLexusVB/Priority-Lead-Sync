@@ -1,95 +1,94 @@
-const express = require('express');
-const { defineSecret } = require('firebase-functions/params');
-const { onRequest } = require('firebase-functions/v2/https');
-const logger = require('firebase-functions/logger');
-const admin = require('firebase-admin');
-const OpenAI = require('openai');
-const { parseAdfEmail, extractLeadFromContact } = require('./adfEmailHandler');
+import { onRequest } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
+import * as admin from "firebase-admin";
+import { parseStringPromise } from "xml2js";
 
-admin.initializeApp();
+try { admin.initializeApp(); } catch {}
 
-// Define secrets with firebase-functions/params.
-const GMAIL_WEBHOOK_SECRET = defineSecret('GMAIL_WEBHOOK_SECRET');
-const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
+/** Runtime secrets (mounted via Google Secret Manager) */
+const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
+const OPENAI_API_KEY       = defineSecret("OPENAI_API_KEY");
 
-exports.helloWorld = onRequest((request, response) => {
-  logger.info('Hello logs!', { structuredData: true });
-  response.send('Hello from Firebase!');
-});
+/** Health check */
+export const health = onRequest({ region: "us-central1" }, (_req, res) => res.status(200).send("ok"));
 
-const app = express();
-app.use(express.text({ type: '*/*', limit: '1mb' }));
-
-const receiveEmailLeadHandler = async (req, res) => {
-  const secret = req.headers['x-webhook-secret'];
-  if (!secret || secret !== GMAIL_WEBHOOK_SECRET.value()) {
-    return res.status(401).send('Unauthorized');
+/** Verify secrets are mounted (no values leaked) */
+export const testSecrets = onRequest(
+  { region: "us-central1", secrets: [GMAIL_WEBHOOK_SECRET, OPENAI_API_KEY] },
+  (_req, res) => {
+    res.json({
+      ok: Boolean(process.env.GMAIL_WEBHOOK_SECRET && process.env.OPENAI_API_KEY),
+      checks: {
+        GMAIL_WEBHOOK_SECRET: Boolean(process.env.GMAIL_WEBHOOK_SECRET),
+        OPENAI_API_KEY: Boolean(process.env.OPENAI_API_KEY),
+      },
+      timestamp: new Date().toISOString(),
+    });
   }
-
-  const body = req.body;
-  if (typeof body !== 'string' || body.trim() === '') {
-    return res.status(400).send('Invalid body');
-  }
-
-  const adf = parseAdfEmail(body);
-  if (!adf) {
-    return res.status(400).send('Invalid ADF body');
-  }
-
-  let lead = {};
-  const contact = adf?.prospect?.customer?.contact;
-  if (contact) {
-    lead = extractLeadFromContact(contact);
-  }
-
-  await admin.firestore().collection('leads_v2').add({
-    ...lead,
-    receivedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  res.status(200).send('OK');
-};
-
-app.post('/', receiveEmailLeadHandler);
-
-exports.receiveEmailLeadHandler = receiveEmailLeadHandler;
-
-exports.receiveEmailLead = onRequest(
-  { region: 'us-central1', secrets: [GMAIL_WEBHOOK_SECRET] },
-  app
 );
 
-const aiApp = express();
-aiApp.use(express.json());
+/** Primary webhook: auth via x-webhook-secret; accepts JSON or ADF/XML; writes to Firestore */
+export const receiveEmailLead = onRequest(
+  {
+    region: "us-central1",
+    secrets: [GMAIL_WEBHOOK_SECRET],
+    timeoutSeconds: 30,
+    maxInstances: 10,
+  },
+  async (req, res) => {
+    const provided = (req.header("x-webhook-secret") || "").trim();
+    const expected = (process.env.GMAIL_WEBHOOK_SECRET || "").trim();
+    if (!expected || provided !== expected) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
 
-const generateAIReplyHandler = async (req, res) => {
-  const lead = req.body;
-  if (!lead || typeof lead !== 'object') {
-    return res.status(400).send('Invalid body');
+    try {
+      let lead;
+      const ct = (req.headers["content-type"] || "").toLowerCase();
+
+      if (ct.includes("application/json")) {
+        lead = { ...req.body };
+      } else {
+        const xml = req.rawBody?.toString("utf8") || "";
+        const parsed = await parseStringPromise(xml, { explicitArray: false, trim: true });
+        const p = parsed?.adf?.prospect || parsed?.prospect || {};
+        const vehicle = p.vehicle || {};
+        const contact = p.customer?.contact || p.customer || {};
+
+        lead = {
+          source: "webhook",
+          format: "adf",
+          requestDate: p.requestdate || p.requestDate || new Date().toISOString(),
+          vehicle: {
+            year: vehicle.year || null,
+            make: vehicle.make || null,
+            model: vehicle.model || null,
+            vin: vehicle.vin || null,
+          },
+          customer: {
+            name: contact?.name?.["_"] || contact?.name || null,
+            email: contact?.email || null,
+            phone: contact?.phone || null,
+          },
+        };
+      }
+
+      lead.receivedAt = admin.firestore.FieldValue.serverTimestamp();
+      await admin.firestore().collection("leads_v2").add(lead);
+
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ ok: false, error: String(err) });
+    }
   }
+);
 
-  const prompt = lead.comments
-    ? `Customer wrote: "${lead.comments}". Craft a helpful, concise reply to book an appointment at our Lexus dealership.`
-    : `Generate a compelling message to follow up with a customer interested in a ${lead.vehicle}. Include dealership name and suggest a time to come in.`;
-
-  try {
-    const openai = new OpenAI({ apiKey: OPENAI_API_KEY.value() });
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-    });
-    res.json({ reply: response.choices[0].message.content });
-  } catch (error) {
-    console.error('OpenAI API error:', error);
-    res.status(500).send('AI generation failed');
+/** Stubbed AI reply — verifies key presence */
+export const generateAIReply = onRequest(
+  { region: "us-central1", secrets: [OPENAI_API_KEY], timeoutSeconds: 60 },
+  async (_req, res) => {
+    if (!process.env.OPENAI_API_KEY) return res.status(500).json({ ok: false, error: "Missing OPENAI_API_KEY" });
+    return res.json({ ok: true, msg: "AI reply generator is wired." });
   }
-};
-
-aiApp.post('/', generateAIReplyHandler);
-
-exports.generateAIReplyHandler = generateAIReplyHandler;
-
-exports.generateAIReply = onRequest(
-  { region: 'us-central1', secrets: [OPENAI_API_KEY] },
-  aiApp
 );
