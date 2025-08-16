@@ -1,11 +1,14 @@
 // functions/index.js (Gen 2 + Gmail OAuth + tolerant JSON/XML)
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import * as admin from "firebase-admin";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { google } from "googleapis";
 import { parseStringPromise } from "xml2js";
 
-try { admin.initializeApp(); } catch {}
+if (getApps().length === 0) {
+  initializeApp(); // uses the default service account in Cloud Functions
+}
 
 // Secrets (mounted via Google Secret Manager)
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
@@ -124,8 +127,9 @@ export const receiveEmailLead = onRequest(
         };
       }
 
-      lead.receivedAt = admin.firestore.FieldValue.serverTimestamp();
-      await admin.firestore().collection("leads_v2").add(lead);
+      const db = getFirestore();
+      lead.receivedAt = FieldValue.serverTimestamp();
+      await db.collection("leads_v2").add(lead);
       return res.status(200).json({ ok: true });
     } catch (err) {
       console.error("receiveEmailLead error:", err);
