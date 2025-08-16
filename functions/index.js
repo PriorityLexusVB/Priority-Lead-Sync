@@ -2,17 +2,20 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { google } from "googleapis";
 import { parseStringPromise } from "xml2js";
 
 /** ---------- Admin SDK bootstrap (explicit project binding) ---------- */
 if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: "priority-lead-sync",
-  });
+  admin.initializeApp({ projectId: "priority-lead-sync" });
 }
-const db = admin.firestore();
+// IMPORTANT: target the named database you created in the console
+const db = getFirestore(undefined, "leads");
+
+// (If you reference FieldValue elsewhere, switch to the imported one)
+// example:
+// lead.receivedAt = FieldValue.serverTimestamp();
 
 /** ---------- Secrets (mounted from Secret Manager at runtime) ---------- */
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
