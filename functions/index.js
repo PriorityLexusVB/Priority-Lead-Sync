@@ -1,27 +1,15 @@
 // functions/index.js (Gen 2 + Gmail OAuth + tolerant JSON/XML)
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
- codex/update-firestore-imports-and-usage-twnc98
 import { initializeApp, getApps } from "firebase-admin/app";
-
- codex/update-firestore-imports-and-usage-j4d5xf
-import { initializeApp, getApps } from "firebase-admin/app";
-
-import * as admin from "firebase-admin";
- main
- main
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { google } from "googleapis";
 import { parseStringPromise } from "xml2js";
 
+// Initialize the Admin SDK once
 if (getApps().length === 0) {
-  initializeApp(); // uses the default service account in Cloud Functions
+  initializeApp(); // uses default service account in Functions v2
 }
- codex/update-firestore-imports-and-usage-twnc98
-
-const db = getFirestore();
-
- main
 
 // Secrets (mounted via Google Secret Manager)
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
@@ -140,10 +128,7 @@ export const receiveEmailLead = onRequest(
         };
       }
 
- codex/update-firestore-imports-and-usage-twnc98
-
       const db = getFirestore();
- main
       lead.receivedAt = FieldValue.serverTimestamp();
       await db.collection("leads_v2").add(lead);
       return res.status(200).json({ ok: true });
