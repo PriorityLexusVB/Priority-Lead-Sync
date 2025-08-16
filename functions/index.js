@@ -1,12 +1,18 @@
 // functions/index.js (Gen 2 + Gmail OAuth + tolerant JSON/XML)
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
+ codex/update-firestore-imports-and-usage-j4d5xf
+import { initializeApp, getApps } from "firebase-admin/app";
+
 import * as admin from "firebase-admin";
+ main
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { google } from "googleapis";
 import { parseStringPromise } from "xml2js";
 
-try { admin.initializeApp(); } catch {}
+if (getApps().length === 0) {
+  initializeApp(); // uses the default service account in Cloud Functions
+}
 
 // Secrets (mounted via Google Secret Manager)
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");

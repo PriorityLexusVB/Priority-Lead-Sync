@@ -1,4 +1,5 @@
-const admin = require('firebase-admin');
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 
 function fail(msg, err) {
   console.error(msg);
@@ -13,8 +14,8 @@ try { sa = JSON.parse(raw); } catch (e) { fail('GCP_SA_KEY is not valid JSON.', 
 if (!sa.client_email || !sa.private_key) fail('JSON missing client_email/private_key.');
 
 try {
-  admin.initializeApp({
-    credential: admin.credential.cert(sa),
+  initializeApp({
+    credential: cert(sa),
     projectId: process.env.GOOGLE_CLOUD_PROJECT,
   });
 } catch (e) {
@@ -22,7 +23,7 @@ try {
 }
 
 const databaseId = process.env.FIRESTORE_DATABASE_ID || 'leads';
-const db = admin.firestore();
+const db = getFirestore();
 db.settings({ databaseId }); // target non-default DB immediately
 
 (async () => {
