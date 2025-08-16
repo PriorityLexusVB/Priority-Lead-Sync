@@ -3,6 +3,8 @@ node_modules/
 
 # Firebase credentials
 .env
+.env.*
+!.env.example
 credentials.json
 
 # OS-specific
