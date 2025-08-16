@@ -5,10 +5,7 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { parseStringPromise } from "xml2js";
 import { google } from "googleapis";
 
-/** Initialize Admin SDK exactly once
- *  If Firestore NOT_FOUND occurs at runtime, the Firestore database likely isn't created in this project yet.
- *  You can optionally lock the projectId explicitly to avoid ambient mismatch.
- */
+// Initialize Admin SDK exactly once, bound to the correct project
 if (getApps().length === 0) {
   initializeApp({ projectId: "priority-lead-sync" });
 }
@@ -53,24 +50,22 @@ export const firestoreHealth = onRequest(
       const now = new Date().toISOString();
       await ref.set({ now, source: "firestoreHealth" }, { merge: true });
       const got = await ref.get();
-      const data = got.exists ? got.data() : null;
       res.json({
         ok: true,
         projectId: process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "unknown",
         databaseId: "(default)",
         wroteAt: now,
-        readBack: data,
+        readBack: got.exists ? got.data() : null,
       });
     } catch (e) {
-      // Surface gRPC code and message for rapid diagnosis (NOT_FOUND => DB not created)
-      const err = e && typeof e === "object" ? e : { message: String(e) };
+      const msg = e && e.message ? e.message : String(e);
       res.status(500).json({
         ok: false,
-        code: err.code || err.status || "UNKNOWN",
-        error: String(err.message || e),
-        hint: (String(err.message || "") || "").includes("NOT_FOUND")
-          ? "Firestore database likely not created in this project. In Firebase Console: Firestore -> Create Database (Native) -> choose location."
-          : "Check service account permissions and projectId initialization.",
+        code: e?.code || e?.status || "UNKNOWN",
+        error: msg,
+        hint: msg.includes("NOT_FOUND")
+          ? "Firestore database likely not created. In Firebase Console → Firestore → Create Database (Native)."
+          : "Check service account perms and projectId initialization.",
       });
     }
   }
@@ -167,7 +162,11 @@ export const gmailHealth = onRequest(
         labelSample: (labels.data.labels || []).slice(0, 3),
       });
     } catch (e) {
-      res.status(400).json({ ok: false, error: String(e), hint: "Check client id/secret/redirect + refresh token come from the same OAuth client and Gmail API is enabled." });
+      res.status(400).json({
+        ok: false,
+        error: String(e),
+        hint: "Ensure Client ID/Secret/Redirect URI/Refresh Token are from the same OAuth client, Gmail API is enabled, and your account is an allowed test user."
+      });
     }
   }
 );
