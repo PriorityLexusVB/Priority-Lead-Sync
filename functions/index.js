@@ -1,85 +1,88 @@
-// functions/index.js (Gen 2 + Gmail OAuth + tolerant JSON/XML)
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { google } from "googleapis";
 import { parseStringPromise } from "xml2js";
+import { google } from "googleapis";
 
-// Initialize the Admin SDK once
+/** Initialize Admin SDK exactly once
+ *  If Firestore NOT_FOUND occurs at runtime, the Firestore database likely isn't created in this project yet.
+ *  You can optionally lock the projectId explicitly to avoid ambient mismatch.
+ */
 if (getApps().length === 0) {
   initializeApp({ projectId: "priority-lead-sync" });
 }
 
-// Secrets (mounted via Google Secret Manager)
+/** Runtime secrets (mounted via Google Secret Manager) */
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
 const OPENAI_API_KEY       = defineSecret("OPENAI_API_KEY");
+const GMAIL_CLIENT_ID      = defineSecret("GMAIL_CLIENT_ID");
+const GMAIL_CLIENT_SECRET  = defineSecret("GMAIL_CLIENT_SECRET");
+const GMAIL_REFRESH_TOKEN  = defineSecret("GMAIL_REFRESH_TOKEN");
+const GMAIL_REDIRECT_URI   = defineSecret("GMAIL_REDIRECT_URI");
 
-const GMAIL_CLIENT_ID     = defineSecret("GMAIL_CLIENT_ID");
-const GMAIL_CLIENT_SECRET = defineSecret("GMAIL_CLIENT_SECRET");
-const GMAIL_REFRESH_TOKEN = defineSecret("GMAIL_REFRESH_TOKEN");
-const GMAIL_REDIRECT_URI  = defineSecret("GMAIL_REDIRECT_URI");
-
-// --- health ---
+/** Health check */
 export const health = onRequest({ region: "us-central1" }, (_req, res) => res.status(200).send("ok"));
 
-// --- testSecrets ---
+/** Verify secrets are mounted (no values leaked) */
 export const testSecrets = onRequest(
-  { region: "us-central1", secrets: [GMAIL_WEBHOOK_SECRET, OPENAI_API_KEY] },
+  { region: "us-central1", secrets: [GMAIL_WEBHOOK_SECRET, OPENAI_API_KEY, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_REDIRECT_URI] },
   (_req, res) => {
     res.json({
-      ok: Boolean(process.env.GMAIL_WEBHOOK_SECRET && process.env.OPENAI_API_KEY),
+      ok: true,
       checks: {
         GMAIL_WEBHOOK_SECRET: Boolean(process.env.GMAIL_WEBHOOK_SECRET),
         OPENAI_API_KEY: Boolean(process.env.OPENAI_API_KEY),
+        GMAIL_CLIENT_ID: Boolean(process.env.GMAIL_CLIENT_ID),
+        GMAIL_CLIENT_SECRET: Boolean(process.env.GMAIL_CLIENT_SECRET),
+        GMAIL_REFRESH_TOKEN: Boolean(process.env.GMAIL_REFRESH_TOKEN),
+        GMAIL_REDIRECT_URI: Boolean(process.env.GMAIL_REDIRECT_URI),
       },
       timestamp: new Date().toISOString(),
     });
   }
 );
 
-// --- Gmail: build an authenticated client from refresh token ---
-function buildGmailClient() {
-  const oauth2 = new google.auth.OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    process.env.GMAIL_REDIRECT_URI
-  );
-  oauth2.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
-  return google.gmail({ version: "v1", auth: oauth2 });
-}
-
-// --- gmailHealth: verify creds by fetching profile + first label ---
-export const gmailHealth = onRequest(
-  {
-    region: "us-central1",
-    secrets: [GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_REDIRECT_URI],
-    timeoutSeconds: 30
-  },
+/** Firestore health: create+read a small probe to prove DB exists and perms are OK */
+export const firestoreHealth = onRequest(
+  { region: "us-central1" },
   async (_req, res) => {
     try {
-      const gmail = buildGmailClient();
-      const profile = await gmail.users.getProfile({ userId: "me" });
-      const labels = await gmail.users.labels.list({ userId: "me" });
+      const db = getFirestore();
+      const ref = db.collection("__health").doc("__writecheck");
+      const now = new Date().toISOString();
+      await ref.set({ now, source: "firestoreHealth" }, { merge: true });
+      const got = await ref.get();
+      const data = got.exists ? got.data() : null;
       res.json({
         ok: true,
-        emailAddress: profile.data.emailAddress,
-        labelSample: labels.data.labels?.slice(0, 3) ?? []
+        projectId: process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "unknown",
+        databaseId: "(default)",
+        wroteAt: now,
+        readBack: data,
       });
-    } catch (err) {
-      console.error("gmailHealth error:", err);
-      res.status(500).json({ ok: false, error: String(err) });
+    } catch (e) {
+      // Surface gRPC code and message for rapid diagnosis (NOT_FOUND => DB not created)
+      const err = e && typeof e === "object" ? e : { message: String(e) };
+      res.status(500).json({
+        ok: false,
+        code: err.code || err.status || "UNKNOWN",
+        error: String(err.message || e),
+        hint: (String(err.message || "") || "").includes("NOT_FOUND")
+          ? "Firestore database likely not created in this project. In Firebase Console: Firestore -> Create Database (Native) -> choose location."
+          : "Check service account permissions and projectId initialization.",
+      });
     }
   }
 );
 
-// --- receiveEmailLead: auth via x-webhook-secret; accepts JSON or ADF/XML; writes to Firestore ---
+/** Primary webhook: auth via x-webhook-secret; accepts JSON or ADF/XML; writes to Firestore */
 export const receiveEmailLead = onRequest(
   {
     region: "us-central1",
     secrets: [GMAIL_WEBHOOK_SECRET],
     timeoutSeconds: 30,
-    maxInstances: 10
+    maxInstances: 10,
   },
   async (req, res) => {
     const provided = (req.header("x-webhook-secret") || "").trim();
@@ -89,27 +92,18 @@ export const receiveEmailLead = onRequest(
     }
 
     try {
-      const ct = String(req.headers["content-type"] || "").toLowerCase();
-      // Normalize raw bytes to tolerate PowerShell/curl/body-parsing quirks
-      const raw = typeof req.rawBody === "undefined"
-        ? Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body ?? {}), "utf8")
-        : Buffer.from(req.rawBody);
-
       let lead;
+      const ct = (req.headers["content-type"] || "").toLowerCase();
 
       if (ct.includes("application/json")) {
-        let obj = req.body;
-        if (typeof obj === "string" || Buffer.isBuffer(obj)) {
-          const s = Buffer.isBuffer(obj) ? obj.toString("utf8") : obj;
-          obj = s.length ? JSON.parse(s) : {};
-        }
-        lead = { ...obj };
+        lead = { ...req.body };
       } else {
-        const xml = raw.toString("utf8");
+        const xml = req.rawBody?.toString("utf8") || "";
         const parsed = await parseStringPromise(xml, { explicitArray: false, trim: true });
         const p = parsed?.adf?.prospect || parsed?.prospect || {};
         const vehicle = p.vehicle || {};
         const contact = p.customer?.contact || p.customer || {};
+
         lead = {
           source: "webhook",
           format: "adf",
@@ -118,28 +112,32 @@ export const receiveEmailLead = onRequest(
             year: vehicle.year || null,
             make: vehicle.make || null,
             model: vehicle.model || null,
-            vin: vehicle.vin || null
+            vin: vehicle.vin || null,
           },
           customer: {
             name: contact?.name?.["_"] || contact?.name || null,
             email: contact?.email || null,
-            phone: contact?.phone || null
-          }
+            phone: contact?.phone || null,
+          },
         };
       }
 
+      // Firestore write (modular API)
       const db = getFirestore();
       lead.receivedAt = FieldValue.serverTimestamp();
       await db.collection("leads_v2").add(lead);
+
       return res.status(200).json({ ok: true });
     } catch (err) {
-      console.error("receiveEmailLead error:", err);
-      return res.status(400).json({ ok: false, error: "Bad request: " + (err instanceof Error ? err.message : String(err)) });
+      console.error(err);
+      const msg = String(err && err.message ? err.message : err);
+      // Common field diagnosis: NOT_FOUND => DB not created
+      return res.status(400).json({ ok: false, error: `Bad request: ${msg}` });
     }
   }
 );
 
-// --- AI stub (unchanged) ---
+/** Stubbed AI reply — verifies key presence */
 export const generateAIReply = onRequest(
   { region: "us-central1", secrets: [OPENAI_API_KEY], timeoutSeconds: 60 },
   async (_req, res) => {
@@ -148,3 +146,28 @@ export const generateAIReply = onRequest(
   }
 );
 
+/** Gmail OAuth health (profile + top labels) */
+export const gmailHealth = onRequest(
+  { region: "us-central1", secrets: [GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_REDIRECT_URI] },
+  async (_req, res) => {
+    try {
+      const oauth2 = new google.auth.OAuth2(
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET,
+        process.env.GMAIL_REDIRECT_URI
+      );
+      oauth2.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+      const gmail = google.gmail({ version: "v1", auth: oauth2 });
+
+      const profile = await gmail.users.getProfile({ userId: "me" });
+      const labels  = await gmail.users.labels.list({ userId: "me" });
+      res.json({
+        ok: true,
+        emailAddress: profile.data.emailAddress,
+        labelSample: (labels.data.labels || []).slice(0, 3),
+      });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: String(e), hint: "Check client id/secret/redirect + refresh token come from the same OAuth client and Gmail API is enabled." });
+    }
+  }
+);
