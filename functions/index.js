@@ -1,17 +1,18 @@
 // functions/index.js
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import { initializeApp, getApps, getApp } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { google } from "googleapis";
 import { parseStringPromise } from "xml2js";
 
-/** ---------- Admin SDK init (modular, single instance) ---------- */
-const app = getApps().length ? getApp() : initializeApp({
-  // Lock to the intended project to avoid ambient mismatches
-  projectId: "priority-lead-sync",
-});
-const db = getFirestore(app);
+/** ---------- Admin SDK bootstrap (explicit project binding) ---------- */
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: "priority-lead-sync",
+  });
+}
+const db = admin.firestore();
 
 /** ---------- Secrets (mounted from Secret Manager at runtime) ---------- */
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
@@ -55,35 +56,30 @@ export const testSecrets = onRequest(
   }
 );
 
-/** ---------- Firestore health (self-diagnosing) ---------- */
-export const firestoreHealth = onRequest(
-  { region: "us-central1" },
-  async (_req, res) => {
-    try {
-      const ref = db.collection("__health").doc("__writecheck");
-      const now = new Date().toISOString();
-      await ref.set({ now, source: "firestoreHealth" }, { merge: true });
-      const snap = await ref.get();
-      res.json({
-        ok: true,
-        projectId: process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "unknown",
-        databaseId: "(default)",
-        wroteAt: now,
-        readBack: snap.exists ? snap.data() : null,
-      });
-    } catch (e) {
-      const msg = e && e.message ? e.message : String(e);
-      res.status(500).json({
-        ok: false,
-        code: e?.code || e?.status || "UNKNOWN",
-        error: msg,
-        hint: msg.includes("NOT_FOUND")
-          ? "Firestore database likely not created. In Firebase Console: Firestore → Create database (Native) → choose a location."
-          : "Check service account permissions and Admin initialization.",
-      });
-    }
+/** ---------- Firestore health: default DB (no custom databaseId) ---------- */
+export const firestoreHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
+  try {
+    const ref = db.collection("ci-checks").doc("last-run");
+    await ref.set(
+      {
+        ranAt: new Date().toISOString(),
+        // record where this ran, for sanity
+        projectId: admin.app().options.projectId || "unknown",
+        node: process.version,
+      },
+      { merge: true }
+    );
+    const snap = await ref.get();
+    return res.status(200).json({
+      ok: true,
+      exists: snap.exists,
+      data: snap.exists ? snap.data() : null,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, error: String(err) });
   }
-);
+});
 
 /** ---------- Gmail OAuth health ---------- */
 export const gmailHealth = onRequest(
