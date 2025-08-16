@@ -8,7 +8,7 @@ import { parseStringPromise } from "xml2js";
 
 // Initialize the Admin SDK once
 if (getApps().length === 0) {
-  initializeApp(); // uses default service account in Functions v2
+  initializeApp({ projectId: "priority-lead-sync" });
 }
 
 // Secrets (mounted via Google Secret Manager)
