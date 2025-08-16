@@ -10,6 +10,8 @@ if (getApps().length === 0) {
   initializeApp(); // uses the default service account in Cloud Functions
 }
 
+const db = getFirestore();
+
 // Secrets (mounted via Google Secret Manager)
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
 const OPENAI_API_KEY       = defineSecret("OPENAI_API_KEY");
@@ -127,7 +129,6 @@ export const receiveEmailLead = onRequest(
         };
       }
 
-      const db = getFirestore();
       lead.receivedAt = FieldValue.serverTimestamp();
       await db.collection("leads_v2").add(lead);
       return res.status(200).json({ ok: true });
