@@ -1,0 +1,11 @@
+// Only allow reads to authenticated users (tune as needed), block writes.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Tighten by path if you expose a dashboard later
+    match /{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

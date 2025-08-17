@@ -1,0 +1,71 @@
+{
+  "info": {
+    "name": "Priority Lead Sync",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "7cf6a44f-0a51-45a8-9e2c-PLS"
+  },
+  "item": [
+    {
+      "name": "health",
+      "request": { "method": "GET", "url": { "raw": "{{baseUrlRoot}}/health", "host": ["{{baseUrlRoot}}"], "path": ["health"] } }
+    },
+    {
+      "name": "testSecrets",
+      "request": { "method": "GET", "url": { "raw": "{{baseUrlRoot}}/testSecrets", "host": ["{{baseUrlRoot}}"], "path": ["testSecrets"] } }
+    },
+    {
+      "name": "gmailHealth",
+      "request": { "method": "GET", "url": { "raw": "{{baseUrlRoot}}/gmailHealth", "host": ["{{baseUrlRoot}}"], "path": ["gmailHealth"] } }
+    },
+    {
+      "name": "firestoreHealth",
+      "request": { "method": "GET", "url": { "raw": "{{baseUrlRoot}}/firestoreHealth", "host": ["{{baseUrlRoot}}"], "path": ["firestoreHealth"] } }
+    },
+    {
+      "name": "receiveEmailLead (JSON)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-webhook-secret", "value": "{{webhookSecret}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"source\":\"webhook\",\n  \"format\":\"json\",\n  \"subject\":\"Test Lead (JSON)\",\n  \"from\":\"customer@example.com\",\n  \"body\":\"Interested in a Lexus RX350\",\n  \"vehicle\": {\"year\":\"2025\",\"make\":\"Lexus\",\"model\":\"RX 350\"},\n  \"customer\": {\"name\":\"Test Lead\",\"email\":\"lead@example.com\",\"phone\":\"555-123-4567\"},\n  \"requestDate\":\"{{nowIso}}\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+      }
+    },
+    {
+      "name": "receiveEmailLead (ADF/XML)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "x-webhook-secret", "value": "{{webhookSecret}}" },
+          { "key": "Content-Type", "value": "application/xml" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<adf>\n  <prospect>\n    <requestdate>{{nowIso}}</requestdate>\n    <vehicle>\n      <year>2025</year>\n      <make>Lexus</make>\n      <model>RX 350</model>\n      <vin>2T3S1RFY1RC123456</vin>\n    </vehicle>\n    <customer>\n      <contact>\n        <name>XML Tester</name>\n        <email>xmltester@example.com</email>\n        <phone>555-555-0000</phone>\n      </contact>\n    </customer>\n  </prospect>\n</adf>"
+        },
+        "url": { "raw": "{{baseUrl}}", "host": ["{{baseUrl}}"] }
+      }
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "pm.variables.set('nowIso', new Date().toISOString());"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrlRoot", "value": "https://us-central1-priority-lead-sync.cloudfunctions.net" },
+    { "key": "baseUrl", "value": "https://receiveemaillead-puboig54jq-uc.a.run.app" },
+    { "key": "webhookSecret", "value": "PriorityLead2025SecretKey" }
+  ]
+}
