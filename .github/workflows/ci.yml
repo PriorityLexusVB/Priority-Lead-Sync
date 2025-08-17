@@ -1,0 +1,82 @@
+name: Priority Lead Sync • CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install functions deps
+        run: npm ci --prefix functions
+
+      - name: Install CLIs (firebase-tools, newman)
+        run: npm i -g firebase-tools newman
+
+      # Unit tests
+      - name: Run unit tests (functions)
+        run: npm test --prefix functions --silent
+
+      # Postman smoke tests against live webhook
+      - name: Postman smoke tests (JSON + ADF/XML)
+        run: |
+          newman run tests/Priority-Lead-Sync.postman_collection.json \
+            --env-var baseUrl="${{ secrets.WEBHOOK_BASE_URL }}" \
+            --env-var webhookSecret="${{ secrets.GMAIL_WEBHOOK_SECRET }}" \
+            --reporters cli
+
+      # Write SA JSON from GitHub secret for deploy steps
+      - name: Write service account JSON
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $HOME/fb-sa.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/fb-sa.json" >> $GITHUB_ENV
+
+      # Deploy functions on main only
+      - name: Deploy Cloud Functions
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          firebase deploy \
+            --project "$PROJECT_ID" \
+            --only "functions:receiveEmailLead,functions:firestoreHealth,functions:gmailHealth,functions:testSecrets" \
+            --non-interactive --force
+
+      # Deploy Firestore rules on main only
+      - name: Deploy Firestore rules
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          firebase deploy --project "$PROJECT_ID" --only firestore:rules --non-interactive --force
+
+      # Optional health checks on main only (won't fail if unset)
+      - name: Health probes (optional)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -e
+          if [ -n "${{ secrets.HEALTH_FIRESTORE_URL }}" ]; then
+            curl -fsSL "${{ secrets.HEALTH_FIRESTORE_URL }}"
+          fi
+          if [ -n "${{ secrets.HEALTH_GMAIL_URL }}" ]; then
+            curl -fsSL "${{ secrets.HEALTH_GMAIL_URL }}"
+          fi
+          if [ -n "${{ secrets.HEALTH_TESTSECRETS_URL }}" ]; then
+            curl -fsSL "${{ secrets.HEALTH_TESTSECRETS_URL }}"
+          fi
