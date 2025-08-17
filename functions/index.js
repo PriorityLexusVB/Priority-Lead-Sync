@@ -8,7 +8,7 @@ import { parseStringPromise } from "xml2js";
 
 /** ---------- Admin SDK bootstrap (explicit project binding) ---------- */
 if (getApps().length === 0) {
-  initializeApp({ projectId: "priority-lead-sync" });
+  initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || "priority-lead-sync" });
 }
 const db = getFirestore(undefined, "leads");
 
@@ -26,7 +26,7 @@ const GMAIL_REDIRECT_URI   = defineSecret("GMAIL_REDIRECT_URI");
 
 /** ---------- Health (simple) ---------- */
 export const health = onRequest({ region: "us-central1" }, (_req, res) => {
-  res.status(200).send("ok");
+  res.status(200).json({ ok: true, timestamp: new Date().toISOString() });
 });
 
 /** ---------- Secrets check (no values leaked) ---------- */
