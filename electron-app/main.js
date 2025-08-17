@@ -6,6 +6,7 @@ const {
   Menu,
   nativeImage,
   ipcMain,
+  Notification,
 } = require('electron');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') }); // ✅ Load .env for Firebase keys
@@ -29,6 +30,25 @@ for (const key of REQUIRED_ENV_VARS) {
 
 let tray = null;
 let win;
+
+ipcMain.handle('notify', (_evt, { title, body }) => {
+  new Notification({ title, body }).show();
+});
+
+ipcMain.handle('open-leads', async () => {
+  if (!win) {
+    win = new BrowserWindow({
+      width: 980,
+      height: 680,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.cjs'),
+      },
+      show: false,
+    });
+    await win.loadURL(process.env.VITE_DEV_SERVER_URL || `file://${path.join(__dirname, '../renderer/index.html')}`);
+  }
+  win.show();
+});
 
 ipcMain.handle('request-ai-reply', async (_event, lead) => {
   // Forward lead data to Cloud Function that uses server-side OpenAI secret
@@ -58,13 +78,13 @@ function createWindow() {
     width: 400,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'), // Enables contextBridge
+      preload: path.join(__dirname, 'preload.cjs'), // Enables contextBridge
       nodeIntegration: false, // ⚠️ Stay secure
       contextIsolation: true,
     },
   });
 
-  win.loadFile('index.html');
+  win.loadURL(process.env.VITE_DEV_SERVER_URL || `file://${path.join(__dirname, '../renderer/index.html')}`);
   // Uncomment below to show window on launch (optional)
   // win.webContents.openDevTools();
 }
