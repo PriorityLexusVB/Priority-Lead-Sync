@@ -15,7 +15,7 @@ jobs:
       id-token: write
 
     env:
-      PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
 
     steps:
       - name: Checkout
@@ -48,23 +48,23 @@ jobs:
       # Write SA JSON from GitHub secret for deploy steps
       - name: Write service account JSON
         run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $HOME/fb-sa.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/fb-sa.json" >> $GITHUB_ENV
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $HOME/gcloud-key.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcloud-key.json" >> $GITHUB_ENV
 
       # Deploy functions on main only
       - name: Deploy Cloud Functions
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           firebase deploy \
-            --project "$PROJECT_ID" \
-            --only "functions:receiveEmailLead,functions:firestoreHealth,functions:gmailHealth,functions:testSecrets" \
+            --project "$FIREBASE_PROJECT_ID" \
+            --only "functions:health,functions:testSecrets,functions:firestoreHealth,functions:gmailHealth,functions:receiveEmailLead,functions:generateAIReply" \
             --non-interactive --force
 
       # Deploy Firestore rules on main only
       - name: Deploy Firestore rules
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          firebase deploy --project "$PROJECT_ID" --only firestore:rules --non-interactive --force
+          firebase deploy --project "$FIREBASE_PROJECT_ID" --only firestore:rules --non-interactive --force
 
       # Optional health checks on main only (won't fail if unset)
       - name: Health probes (optional)
