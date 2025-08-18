@@ -6,7 +6,7 @@ if ! command -v apt-get >/dev/null; then
   exit 1
 fi
 
-packages=(libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 squashfs-tools)
+packages=(libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 libnss3 libdrm2 squashfs-tools)
 
 if [ "$(id -u)" -ne 0 ]; then
   SUDO=sudo
