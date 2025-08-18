@@ -42,6 +42,16 @@ curl.exe -X POST "https://us-central1-YOUR_PROJECT.cloudfunctions.net/receiveEma
 
 The `electron-app` directory provides a small Electron application that listens for new leads in the `leads_v2` Firestore collection and displays desktop notifications.
 
+### Linux prerequisites
+
+Running the Electron app in development or creating distributable packages on Linux requires several native libraries. On Debian or Ubuntu based systems you can install them with:
+
+```bash
+scripts/install-linux-deps.sh
+```
+
+This installs `libatk1.0-0`, `libatk-bridge2.0-0`, `libgtk-3-0` (needed for `npm run dev`) and `squashfs-tools` (provides `mksquashfs` for `npm run dist`).
+
 ### Packaging the Electron app for Windows
 
 1. `cd electron-app`
