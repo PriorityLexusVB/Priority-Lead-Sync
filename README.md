@@ -50,7 +50,7 @@ Running the Electron app in development or creating distributable packages on Li
 scripts/install-linux-deps.sh
 ```
 
-This installs `libatk1.0-0`, `libatk-bridge2.0-0`, `libgtk-3-0` (needed for `npm run dev`) and `squashfs-tools` (provides `mksquashfs` for `npm run dist`).
+This installs `libatk1.0-0`, `libatk-bridge2.0-0`, `libgtk-3-0`, `libnss3`, and `libdrm2` (needed for `npm run dev`) plus `squashfs-tools` (provides `mksquashfs` for `npm run dist`).
 
 ### Packaging the Electron app for Windows
 

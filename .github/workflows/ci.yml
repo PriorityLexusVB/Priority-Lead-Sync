@@ -37,6 +37,16 @@ jobs:
       - name: Run unit tests (functions)
         run: npm test --prefix functions --silent
 
+      # Electron build
+      - name: Install Electron deps
+        run: npm ci --prefix electron-app
+
+      - name: Install Linux deps for Electron
+        run: ./scripts/install-linux-deps.sh
+
+      - name: Package Electron app
+        run: npm run dist --prefix electron-app
+
       # Postman smoke tests against live webhook
       - name: Postman smoke tests (JSON + ADF/XML)
         run: |
