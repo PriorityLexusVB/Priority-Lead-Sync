@@ -5,6 +5,11 @@ export default defineConfig({
   server: { port: 5173, strictPort: true },
   build: {
     outDir: 'dist/renderer',
-    emptyOutDir: false
+    emptyOutDir: true,
+    rollupOptions: {
+      // The renderer HTML lives under src/renderer, not project root.
+      // Without this, `vite build` cannot find index.html.
+      input: 'src/renderer/index.html'
+    }
   }
 });

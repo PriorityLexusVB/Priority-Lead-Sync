@@ -8,7 +8,7 @@ const {
   ipcMain,
   Notification,
 } = require('electron');
-const path = require('path');
+const path = require('node:path');
 require('dotenv').config({ path: path.join(__dirname, '.env') }); // ✅ Load .env for Firebase keys
 
 // Ensure required environment variables are present
@@ -41,7 +41,8 @@ ipcMain.handle('open-leads', async () => {
       width: 980,
       height: 680,
       webPreferences: {
-        preload: require('node:path').join(__dirname, 'dist/main/preload.cjs'),
+        // Load the built preload (bundled by esbuild)
+        preload: path.join(__dirname, 'dist/main/preload.cjs'),
       },
       show: false,
     });
@@ -78,7 +79,8 @@ function createWindow() {
     width: 400,
     height: 600,
     webPreferences: {
-      preload: require('node:path').join(__dirname, 'dist/main/preload.cjs'), // Enables contextBridge
+      // Load the built preload (bundled by esbuild)
+      preload: path.join(__dirname, 'dist/main/preload.cjs'), // Enables contextBridge
       nodeIntegration: false, // ⚠️ Stay secure
       contextIsolation: true,
     },

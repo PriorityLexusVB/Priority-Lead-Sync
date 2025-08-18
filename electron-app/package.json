@@ -5,9 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "package-win": "npx @electron/packager . lead-notifier --platform=win32 --arch=x64 --out=dist --overwrite",
     "dev": "concurrently -k -r \"npm:dev:*\"",
-    "dev:preload": "esbuild src/main/preload.ts --bundle --platform=node --format=cjs --outfile=dist/main/preload.cjs --sourcemap",
+    "dev:preload": "esbuild src/main/preload.ts --bundle --platform=node --format=cjs --outfile=dist/main/preload.cjs --sourcemap --watch",
     "dev:renderer": "vite",
     "dev:main": "wait-on tcp:5173 && electron .",
     "build": "vite build && npm run build:preload",
@@ -23,8 +22,12 @@
       "main.js",
       "package.json"
     ],
-    "directories": { "output": "dist" },
-    "win": { "target": "nsis" }
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    }
   },
   "author": "Rob Brasco",
   "license": "MIT",
@@ -37,7 +40,6 @@
     "play-sound": "^1.1.6"
   },
   "devDependencies": {
-    "@electron/packager": "^18.0.0",
     "concurrently": "^9.0.0",
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3",
