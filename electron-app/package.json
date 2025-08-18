@@ -4,13 +4,11 @@
   "description": "Electron app that shows a desktop notification when a new lead is added to Firestore.",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
     "dev": "concurrently -k -r \"npm:dev:*\"",
-    "dev:preload": "esbuild src/main/preload.ts --bundle --platform=node --format=cjs --outfile=dist/main/preload.cjs --sourcemap --watch",
     "dev:renderer": "vite",
-    "dev:main": "wait-on tcp:5173 && electron .",
-    "build": "vite build && npm run build:preload",
-    "build:preload": "esbuild src/main/preload.ts --bundle --platform=node --format=cjs --outfile=dist/main/preload.cjs",
+    "dev:preload": "esbuild src/main/preload.ts --bundle --platform=node --format=cjs --outfile=dist/main/preload.cjs --sourcemap --watch",
+    "dev:main": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 wait-on tcp:5173 && electron .",
+    "build": "vite build && esbuild src/main/preload.ts --bundle --platform=node --format=cjs --outfile=dist/main/preload.cjs",
     "dist": "npm run build && electron-builder"
   },
   "build": {
@@ -41,10 +39,11 @@
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
-    "electron": "^31.0.0",
-    "electron-builder": "^24.13.3",
+    "cross-env": "^7.0.3",
     "esbuild": "^0.23.0",
-    "vite": "^5.3.0",
-    "wait-on": "^7.2.0"
+    "vite": "^5.4.0",
+    "wait-on": "^7.2.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
   }
 }
