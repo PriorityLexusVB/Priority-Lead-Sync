@@ -41,7 +41,7 @@ ipcMain.handle('open-leads', async () => {
       width: 980,
       height: 680,
       webPreferences: {
-        preload: path.join(__dirname, 'preload.cjs'),
+        preload: path.join(__dirname, 'dist/main/preload.cjs'),
       },
       show: false,
     });
@@ -78,7 +78,7 @@ function createWindow() {
     width: 400,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'), // Enables contextBridge
+      preload: path.join(__dirname, 'dist/main/preload.cjs'), // Enables contextBridge
       nodeIntegration: false, // ⚠️ Stay secure
       contextIsolation: true,
     },
