@@ -1,18 +1,20 @@
-<!-- electron-app/index.html -->
 <!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Lead Notifier</title>
+    <title>Lead Notifier (Dev)</title>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: blob: http://localhost:5173 http://127.0.0.1:5173;">
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 16px; }
+      .ok { color: #0a0; }
+    </style>
   </head>
   <body>
-    <div id="app">
-      <h1>Lead Notifier (Dev)</h1>
-      <p>If you can read this, Vite dev server loaded correctly.</p>
-    </div>
+    <h1>Lead Notifier</h1>
+    <p class="ok">Vite renderer loaded. Open DevTools to see logs.</p>
     <script type="module">
-      console.log('Renderer up.');
+      console.log('[renderer] up');
+      console.log('[renderer] window.leadSync?', typeof window.leadSync);
     </script>
   </body>
 </html>
