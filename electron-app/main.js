@@ -1,53 +1,56 @@
 // electron-app/main.js
-const { app, BrowserWindow } = require('electron');
-const path = require('node:path');
+const { app, BrowserWindow, shell } = require('electron');
+const path = require('path');
 
-async function createWindow() {
+const DEV_URL = (process.env.VITE_DEV_SERVER_URL || '').trim();
+const IS_DEV = !!DEV_URL;
+
+console.log('[main] VITE_DEV_SERVER_URL =', DEV_URL || '(not set)');
+console.log('[main] IS_DEV =', IS_DEV);
+
+function createWindow() {
   const win = new BrowserWindow({
-    width: 1100,
-    height: 760,
+    width: 1200,
+    height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'dist', 'main', 'preload.cjs'),
-      contextIsolation: true,
+      sandbox: true,
       nodeIntegration: false,
+      contextIsolation: true,
     },
   });
 
-  const devUrl = process.env.VITE_DEV_SERVER_URL;
-  let targetDesc = '';
-  try {
-    if (devUrl && /^https?:\/\/.+/i.test(devUrl)) {
-      targetDesc = `dev server → ${devUrl}`;
-      console.log(`[electron] Loading renderer from ${targetDesc}`);
-      await win.loadURL(devUrl);
-      win.webContents.openDevTools({ mode: 'detach' });
-    } else {
-      const indexPath = path.join(__dirname, 'dist', 'renderer', 'index.html');
-      targetDesc = `packaged file → ${indexPath}`;
-      console.log(`[electron] Loading renderer from ${targetDesc}`);
-      await win.loadFile(indexPath);
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  const load = async () => {
+    try {
+      if (IS_DEV) {
+        console.log('[main] Loading renderer from dev server →', DEV_URL);
+        await win.loadURL(DEV_URL);
+        win.webContents.openDevTools({ mode: 'detach' });
+      } else {
+        const indexPath = path.join(__dirname, 'dist', 'renderer', 'index.html');
+        console.log('[main] Loading packaged renderer →', indexPath);
+        await win.loadFile(indexPath);
+      }
+    } catch (e) {
+      console.error('[main] Failed to load renderer:', e);
+      const message = `
+        <html><body>
+          <h2>Renderer failed to load</h2>
+          <pre>${String(e)}</pre>
+          <p>IS_DEV=${IS_DEV}, DEV_URL=${DEV_URL || '(not set)'}</p>
+        </body></html>`;
+      win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(message));
     }
-  } catch (err) {
-    console.error(`[electron] Failed to load renderer (${targetDesc})`, err);
-    const msg = [
-      '<h1>Lead Notifier</h1>',
-      '<p>Failed to load the renderer.</p>',
-      devUrl
-        ? `<p><strong>VITE_DEV_SERVER_URL</strong>: ${devUrl}</p>`
-        : '<p>No dev server URL; expected packaged index.html under dist/renderer/.</p>',
-      `<pre style="white-space:pre-wrap">${String(err)}</pre>`
-    ].join('');
-    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(msg));
-  }
+  };
+
+  load();
 }
 
-app.whenReady().then(() => {
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
-});
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
-
+app.whenReady().then(createWindow);
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
