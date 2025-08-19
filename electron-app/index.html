@@ -1,13 +1,18 @@
+<!-- electron-app/index.html -->
 <!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Priority Lead Sync</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lead Notifier</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: blob: http://localhost:5173 http://127.0.0.1:5173;">
   </head>
   <body>
-    <div id="app">Loading…</div>
-    <script type="module" src="./src/renderer/bootstrap.ts"></script>
+    <div id="app">
+      <h1>Lead Notifier (Dev)</h1>
+      <p>If you can read this, Vite dev server loaded correctly.</p>
+    </div>
+    <script type="module">
+      console.log('Renderer up.');
+    </script>
   </body>
 </html>
-
