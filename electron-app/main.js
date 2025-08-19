@@ -30,15 +30,15 @@ async function resolvePreload() {
 }
 
 async function createWindow() {
-  const preload = await resolvePreload();
+  const preloadPath = await resolvePreload();
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload,
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,           // allow Node built-ins in preload
+      sandbox: false, // must be false so preload has Node built-ins
     }
   });
 
