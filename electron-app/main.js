@@ -36,9 +36,9 @@ async function createWindow() {
     height: 800,
     webPreferences: {
       preload,
-      sandbox: true,
+      contextIsolation: true,
       nodeIntegration: false,
-      contextIsolation: true
+      sandbox: false,           // allow Node built-ins in preload
     }
   });
 
