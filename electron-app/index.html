@@ -2,19 +2,18 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Lead Notifier (Dev)</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: blob: http://localhost:5173 http://127.0.0.1:5173;">
+    <title>Priority Lead Sync</title>
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self' 'unsafe-inline' data: blob: http://localhost:5173 http://127.0.0.1:5173;">
     <style>
-      body { font-family: system-ui, sans-serif; padding: 16px; }
-      .ok { color: #0a0; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 8px; }
+      #app { font-size: 20px; }
+      small { color: #666; }
     </style>
   </head>
   <body>
-    <h1>Lead Notifier</h1>
-    <p class="ok">Vite renderer loaded. Open DevTools to see logs.</p>
-    <script type="module">
-      console.log('[renderer] up');
-      console.log('[renderer] window.leadSync?', typeof window.leadSync);
-    </script>
+    <div id="app">Loading…</div>
+    <small>Open DevTools (View → Toggle Developer Tools) to see logs.</small>
+    <script type="module" src="/src/renderer/bootstrap.ts"></script>
   </body>
 </html>
