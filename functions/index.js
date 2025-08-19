@@ -75,7 +75,7 @@ export const firestoreHealth = onRequest(
       const ref = db.collection("ci-checks").doc("last-run");
       await ref.set(
         {
-          ranAt: new Date().toISOString(),
+          ranAt: FieldValue.serverTimestamp(),
           // record where this ran, for sanity
           projectId: app.options.projectId || "unknown",
           node: process.version,
