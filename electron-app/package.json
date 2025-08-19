@@ -7,7 +7,7 @@
     "dev": "concurrently -k -r \"npm:dev:*\"",
     "dev:renderer": "vite",
     "dev:preload": "esbuild src/main/preload.ts --bundle --platform=node --format=cjs --outfile=dist/main/preload.cjs --sourcemap --watch",
-    "dev:main": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 wait-on tcp:5173 && electron .",
+    "dev:main": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
     "build": "vite build && esbuild src/main/preload.ts --bundle --platform=node --format=cjs --outfile=dist/main/preload.cjs",
     "dist": "npm run build && electron-builder",
     "test": "echo \"(placeholder tests)\" && exit 0"
