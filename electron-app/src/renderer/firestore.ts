@@ -4,12 +4,12 @@ import {
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY ?? (process.env.VITE_FIREBASE_API_KEY as string),
-  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN ?? (process.env.VITE_FIREBASE_AUTH_DOMAIN as string),
-  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID ?? (process.env.VITE_FIREBASE_PROJECT_ID as string),
-  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET ?? (process.env.VITE_FIREBASE_STORAGE_BUCKET as string),
-  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID ?? (process.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string),
-  appId: import.meta.env?.VITE_FIREBASE_APP_ID ?? (process.env.VITE_FIREBASE_APP_ID as string),
+  apiKey: import.meta.env.APP_FIREBASE_API_KEY as string,
+  authDomain: import.meta.env.APP_FIREBASE_AUTH_DOMAIN as string,
+  projectId: import.meta.env.APP_FIREBASE_PROJECT_ID as string,
+  storageBucket: import.meta.env.APP_FIREBASE_STORAGE_BUCKET as string,
+  messagingSenderId: import.meta.env.APP_FIREBASE_MESSAGING_SENDER_ID as string,
+  appId: import.meta.env.APP_FIREBASE_APP_ID as string,
 };
 
 const app = initializeApp(firebaseConfig);

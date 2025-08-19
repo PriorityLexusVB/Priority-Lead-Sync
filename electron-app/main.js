@@ -1,6 +1,7 @@
 // electron-app/main.js
 const { app, BrowserWindow, shell } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const DEV_URL = (process.env.VITE_DEV_SERVER_URL || '').trim();
 const IS_DEV = !!DEV_URL;
@@ -8,12 +9,33 @@ const IS_DEV = !!DEV_URL;
 console.log('[main] VITE_DEV_SERVER_URL =', DEV_URL || '(not set)');
 console.log('[main] IS_DEV =', IS_DEV);
 
-function createWindow() {
+async function resolvePreload() {
+  const preloadPath = path.join(__dirname, 'dist', 'main', 'preload.cjs');
+
+  if (fs.existsSync(preloadPath)) return preloadPath;
+
+  if (!IS_DEV) {
+    console.warn('[main] Preload not found at', preloadPath);
+    return preloadPath;
+  }
+
+  console.log('[main] Waiting for preload build…');
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (fs.existsSync(preloadPath)) return preloadPath;
+  }
+
+  console.warn('[main] Preload still missing after waiting →', preloadPath);
+  return preloadPath;
+}
+
+async function createWindow() {
+  const preload = await resolvePreload();
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, 'dist', 'main', 'preload.cjs'),
+      preload,
       sandbox: true,
       nodeIntegration: false,
       contextIsolation: true
