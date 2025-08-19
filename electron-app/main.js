@@ -2,13 +2,7 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('node:path');
 
-function createWindow() {
-  const devUrl = process.env.VITE_DEV_SERVER_URL;
-  const isDev = Boolean(devUrl);
-
-  console.log('[main] VITE_DEV_SERVER_URL =', devUrl || '(none)');
-  console.log('[main] mode =', isDev ? 'DEV' : 'PROD');
-
+async function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
     height: 760,
@@ -19,14 +13,31 @@ function createWindow() {
     },
   });
 
-  if (isDev) {
-    console.log('[main] Loading dev URL ->', devUrl);
-    win.loadURL(devUrl);
-    win.webContents.openDevTools({ mode: 'detach' });
-  } else {
-    const indexFile = path.join(__dirname, 'dist', 'renderer', 'index.html');
-    console.log('[main] Loading prod file ->', indexFile);
-    win.loadFile(indexFile);
+  const devUrl = process.env.VITE_DEV_SERVER_URL;
+  let targetDesc = '';
+  try {
+    if (devUrl && /^https?:\/\/.+/i.test(devUrl)) {
+      targetDesc = `dev server → ${devUrl}`;
+      console.log(`[electron] Loading renderer from ${targetDesc}`);
+      await win.loadURL(devUrl);
+      win.webContents.openDevTools({ mode: 'detach' });
+    } else {
+      const indexPath = path.join(__dirname, 'dist', 'renderer', 'index.html');
+      targetDesc = `packaged file → ${indexPath}`;
+      console.log(`[electron] Loading renderer from ${targetDesc}`);
+      await win.loadFile(indexPath);
+    }
+  } catch (err) {
+    console.error(`[electron] Failed to load renderer (${targetDesc})`, err);
+    const msg = [
+      '<h1>Lead Notifier</h1>',
+      '<p>Failed to load the renderer.</p>',
+      devUrl
+        ? `<p><strong>VITE_DEV_SERVER_URL</strong>: ${devUrl}</p>`
+        : '<p>No dev server URL; expected packaged index.html under dist/renderer/.</p>',
+      `<pre style="white-space:pre-wrap">${String(err)}</pre>`
+    ].join('');
+    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(msg));
   }
 }
 
