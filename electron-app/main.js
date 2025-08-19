@@ -3,8 +3,11 @@ const { app, BrowserWindow } = require('electron');
 const path = require('node:path');
 
 function createWindow() {
-  const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
-  const devUrl = process.env.VITE_DEV_SERVER_URL; // e.g. http://localhost:5173
+  const devUrl = process.env.VITE_DEV_SERVER_URL;
+  const isDev = Boolean(devUrl);
+
+  console.log('[main] VITE_DEV_SERVER_URL =', devUrl || '(none)');
+  console.log('[main] mode =', isDev ? 'DEV' : 'PROD');
 
   const win = new BrowserWindow({
     width: 1100,
@@ -16,13 +19,13 @@ function createWindow() {
     },
   });
 
-  if (isDev && devUrl) {
-    console.log('[main] DEV ->', devUrl);
+  if (isDev) {
+    console.log('[main] Loading dev URL ->', devUrl);
     win.loadURL(devUrl);
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
     const indexFile = path.join(__dirname, 'dist', 'renderer', 'index.html');
-    console.log('[main] PROD ->', indexFile);
+    console.log('[main] Loading prod file ->', indexFile);
     win.loadFile(indexFile);
   }
 }
