@@ -2,16 +2,14 @@ import { defineConfig } from 'vite';
 import path from 'node:path';
 
 export default defineConfig({
-  root: '.',
+  root: '.',                  // renderer lives at project root now
+  server: { port: 5173 },
   build: {
-    outDir: 'dist/renderer',
+    outDir: path.resolve(__dirname, 'dist/renderer'),
     emptyOutDir: true,
     rollupOptions: {
-      input: 'src/renderer/index.html'
-    }
+      input: path.resolve(__dirname, 'index.html'), // entry is the root index.html
+    },
   },
-  server: {
-    port: 5173
-  }
 });
 

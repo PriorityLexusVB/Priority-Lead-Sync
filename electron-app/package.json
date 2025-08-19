@@ -15,17 +15,17 @@
   "build": {
     "appId": "com.priority.leadsync",
     "productName": "Priority Lead Sync",
+    "directories": { "output": "dist" },
     "files": [
-      "dist/**/*",
-      "src/**/*",
-      "main.js",
-      "package.json"
+      "dist/main/**",
+      "dist/renderer/**",
+      "package.json",
+      "main.js"
     ],
-    "directories": {
-      "output": "dist"
-    },
-    "win": {
-      "target": "nsis"
+    "win": { "target": "nsis" },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false
     }
   },
   "author": "Rob Brasco",
