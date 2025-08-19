@@ -1,22 +1,19 @@
 // functions/index.js
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import { getApps, initializeApp, getApp } from "firebase-admin/app";
+import { initializeApp, getApps, getApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import * as admin from "firebase-admin";
 import { google } from "googleapis";
 import { parseStringPromise } from "xml2js";
 
 /** ---------- Admin SDK bootstrap (explicit project binding) ---------- */
-if (getApps().length === 0) {
-  initializeApp({ projectId: "priority-lead-sync" });
-}
-const db = getFirestore(undefined, "leads");
+const app = getApps().length ? getApp() : initializeApp({ projectId: "priority-lead-sync" });
+const db  = getFirestore(app);
 
 console.log("[boot] functions module loaded", {
   node: process.version,
   time: new Date().toISOString(),
-  projectId: admin.app().options.projectId,
+  projectId: app.options.projectId,
 });
 
 // (If you reference FieldValue elsewhere, switch to the imported one)
@@ -80,7 +77,7 @@ export const firestoreHealth = onRequest(
         {
           ranAt: new Date().toISOString(),
           // record where this ran, for sanity
-          projectId: getApp().options.projectId || "unknown",
+          projectId: app.options.projectId || "unknown",
           node: process.version,
         },
         { merge: true }
