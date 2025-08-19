@@ -1,6 +1,6 @@
 // electron-app/main.js
 const { app, BrowserWindow, shell } = require('electron');
-const path = require('path');
+const path = require('node:path');
 
 const DEV_URL = (process.env.VITE_DEV_SERVER_URL || '').trim();
 const IS_DEV = !!DEV_URL;
@@ -16,8 +16,8 @@ function createWindow() {
       preload: path.join(__dirname, 'dist', 'main', 'preload.cjs'),
       sandbox: true,
       nodeIntegration: false,
-      contextIsolation: true,
-    },
+      contextIsolation: true
+    }
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
