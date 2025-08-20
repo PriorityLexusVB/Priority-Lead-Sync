@@ -8,3 +8,11 @@
     "deploy:rules:prod": "npm run rules:use:prod && firebase deploy --project priority-lead-sync --only firestore:rules:leads"
   }
 }
+{
+  "scripts": {
+    "rules:dev:prep": "node -e \"require('fs').copyFileSync('firestore.leads.rules.dev','firestore.leads.rules')\"",
+    "rules:prod:prep": "node -e \"require('fs').copyFileSync('firestore.leads.rules.prod','firestore.leads.rules')\"",
+    "deploy:rules:dev": "npm run rules:dev:prep && firebase deploy --project priority-lead-sync --only firestore:rules",
+    "deploy:rules:prod": "npm run rules:prod:prep && firebase deploy --project priority-lead-sync --only firestore:rules"
+  }
+}
