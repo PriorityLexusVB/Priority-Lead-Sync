@@ -1,15 +1,10 @@
-// electron-app/vite.config.js
-import { defineConfig } from 'vite';
-
+import { defineConfig } from "vite";
 export default defineConfig({
-  root: '.', // index.html at project root
-  server: { port: 5173 },
-  envPrefix: ['VITE_', 'APP_FIREBASE_'],
+  root: ".",
   build: {
-    outDir: 'dist/renderer',
+    outDir: "dist/renderer",
     emptyOutDir: true,
-    rollupOptions: {
-      input: 'src/renderer/index.html',
-    },
-  }
+    rollupOptions: { input: "src/renderer/index.html" },
+  },
+  server: { port: 5173 },
 });

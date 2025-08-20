@@ -1,21 +1,22 @@
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore, collection, query, orderBy, limit, onSnapshot
-} from 'firebase/firestore';
-import { firebaseConfig } from './firebase-config';
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
+import { firebaseWebConfig } from "./firebase-config";
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-
-export function subscribeToLeads(onLead: (doc: any) => void) {
-  const ref = collection(db, 'leads_v2');
-  const q = query(ref, orderBy('receivedAt', 'desc'), limit(25));
-  return onSnapshot(q, (snap) => {
-    snap.docChanges().forEach((change) => {
-      if (change.type === 'added') {
-        const doc = { id: change.doc.id, ...change.doc.data() };
-        onLead(doc);
-      }
-    });
-  });
+let _db;
+export function connect() {
+  if (!_db) {
+    const app = initializeApp(firebaseWebConfig);
+    _db = getFirestore(app);
+  }
+  return _db;
+}
+export async function getRecentLeads(max = 50) {
+  const db = connect();
+  const q = query(collection(db, "leads_v2"), orderBy("receivedAt", "desc"), limit(max));
+  return await getDocs(q);
+}
+export function watchLeads(onChange, max = 50) {
+  const db = connect();
+  const q = query(collection(db, "leads_v2"), orderBy("receivedAt", "desc"), limit(max));
+  return onSnapshot(q, (snap) => onChange(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 }

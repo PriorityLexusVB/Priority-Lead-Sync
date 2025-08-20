@@ -1,4 +1,4 @@
-export const firebaseConfig = {
+export const firebaseWebConfig = {
   apiKey: "AIzaSyB0g7f_313m1pvVDA7hTQthldNTkjvrgF8",
   authDomain: "priority-lead-sync.firebaseapp.com",
   projectId: "priority-lead-sync",
