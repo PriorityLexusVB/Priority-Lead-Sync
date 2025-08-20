@@ -8,6 +8,11 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
   },
   "firestore": {
-    "rules": "firestore.rules"
+    "databases": [
+      {
+        "name": "leads",
+        "rules": "firestore.leads.rules"
+      }
+    ]
   }
 }

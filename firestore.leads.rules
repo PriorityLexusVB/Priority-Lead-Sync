@@ -1,0 +1,14 @@
+# This file is just a pointer copy. Do not edit directly in normal use.
+# Use npm scripts "rules:use:dev" or "rules:use:prod" to swap its contents.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /leads_v2/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
