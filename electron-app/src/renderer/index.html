@@ -3,18 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <title>Priority Lead Sync</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
-    <style>
-      body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 16px; }
-      #leads { display: grid; gap: 10px; }
-      .lead { padding: 10px; border-radius: 12px; box-shadow: 0 1px 8px rgba(0,0,0,0.08); }
-      .title { font-weight: 600; }
-      .sub { opacity: 0.8; }
-    </style>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src *;">
   </head>
   <body>
-    <h1>Leads</h1>
-    <div id="leads"></div>
+    <h1>Priority Lead Sync</h1>
+    <div id="status">
+      <div>Firestore: <span id="fs-state">…</span></div>
+      <div>Lead count (live): <span id="lead-count">0</span></div>
+      <button id="send-test">Send Test Lead</button>
+      <pre id="last-result"></pre>
+    </div>
+    <ul id="leads"></ul>
     <script type="module" src="/src/renderer/bootstrap.ts"></script>
   </body>
 </html>

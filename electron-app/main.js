@@ -1,46 +1,35 @@
 // electron-app/main.js
 const path = require('node:path');
 const fs = require('node:fs');
-const { app, BrowserWindow, shell, ipcMain, net } = require('electron');
+const { app, BrowserWindow, shell, ipcMain } = require('electron');
 
 // ---- Windows cache fix: keep profile + cache inside the project (writable) ----
 const userDataDir = path.join(process.cwd(), 'user-data');
-const diskCacheDir = path.join(process.cwd(), 'cache');
-for (const p of [userDataDir, diskCacheDir]) {
+const cacheDir = path.join(process.cwd(), 'cache');
+for (const p of [userDataDir, cacheDir]) {
   try { fs.mkdirSync(p, { recursive: true }); } catch {}
 }
 app.setPath('userData', userDataDir);
-app.commandLine.appendSwitch('disk-cache-dir', diskCacheDir);
+app.setPath('cache', cacheDir);
 // Optional extra hammer if needed:
-// app.commandLine.appendSwitch('disable-http-cache');
+app.commandLine.appendSwitch('disable-http-cache');
 
-// ---- IPC: POST JSON via main process using electron.net (avoids CORS) ----
-ipcMain.handle('http:post-json', async (_evt, { url, headers = {}, body = {} }) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const request = net.request({ method: 'POST', url });
-      request.setHeader('Content-Type', 'application/json; charset=utf-8');
-      for (const [k, v] of Object.entries(headers)) request.setHeader(k, v);
-      let raw = '';
-      request.on('response', (res) => {
-        res.on('data', (chunk) => (raw += chunk));
-        res.on('end', () => {
-          resolve({
-            statusCode: res.statusCode,
-            headers: Object.fromEntries(
-              Object.entries(res.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : v])
-            ),
-            body: raw,
-          });
-        });
-      });
-      request.on('error', reject);
-      request.write(JSON.stringify(body));
-      request.end();
-    } catch (e) {
-      reject(e);
-    }
+// ---- IPC: raw HTTP/HTTPS POST (avoids CORS) ----
+ipcMain.handle('http:post-json', async (_evt, url, body = {}, headers = {}) => {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
   });
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch {}
+  return {
+    status: res.status,
+    headers: Object.fromEntries(res.headers.entries()),
+    body: text,
+    json,
+  };
 });
 
 const DEV_URL = (process.env.VITE_DEV_SERVER_URL || '').trim();
@@ -50,7 +39,7 @@ console.log('[main] VITE_DEV_SERVER_URL =', DEV_URL || '(not set)');
 console.log('[main] IS_DEV =', IS_DEV);
 
 async function resolvePreload() {
-  const preloadPath = path.join(__dirname, 'dist', 'main', 'preload.cjs');
+  const preloadPath = path.join(process.cwd(), 'dist', 'main', 'preload.cjs');
 
   if (fs.existsSync(preloadPath)) return preloadPath;
 
@@ -94,7 +83,7 @@ async function createWindow() {
         await win.loadURL(DEV_URL);
         win.webContents.openDevTools({ mode: 'detach' });
       } else {
-        const indexPath = path.join(__dirname, 'dist', 'renderer', 'index.html');
+        const indexPath = path.join(process.cwd(), 'dist', 'renderer', 'index.html');
         console.log('[main] Loading packaged renderer →', indexPath);
         await win.loadFile(indexPath);
       }
