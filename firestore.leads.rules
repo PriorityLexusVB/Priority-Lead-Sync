@@ -1,12 +1,14 @@
-# This file is just a pointer copy. Do not edit directly in normal use.
-# Use npm scripts "rules:use:dev" or "rules:use:prod" to swap its contents.
 rules_version = '2';
 service cloud.firestore {
+  // Named DB "leads"
   match /databases/{database}/documents {
+    // TEMP DEV: let the Console and your Electron app READ leads
     match /leads_v2/{doc} {
-      allow read: if true;
-      allow write: if false;
+      allow read: if true;       // <-- DEV convenience (read everything)
+      allow write: if false;     // <-- No client writes in dev
     }
+
+    // Deny everything else
     match /{document=**} {
       allow read, write: if false;
     }

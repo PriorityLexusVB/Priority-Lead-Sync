@@ -1,4 +1,7 @@
 {
+  "name": "priority-lead-sync",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "rules:dev:prep": "copy /Y firestore.leads.rules.dev firestore.leads.rules",
     "rules:prod:prep": "copy /Y firestore.leads.rules.prod firestore.leads.rules",
