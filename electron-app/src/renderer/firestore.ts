@@ -2,15 +2,7 @@ import { initializeApp } from 'firebase/app';
 import {
   getFirestore, collection, query, orderBy, limit, onSnapshot
 } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: import.meta.env.APP_FIREBASE_API_KEY as string,
-  authDomain: import.meta.env.APP_FIREBASE_AUTH_DOMAIN as string,
-  projectId: import.meta.env.APP_FIREBASE_PROJECT_ID as string,
-  storageBucket: import.meta.env.APP_FIREBASE_STORAGE_BUCKET as string,
-  messagingSenderId: import.meta.env.APP_FIREBASE_MESSAGING_SENDER_ID as string,
-  appId: import.meta.env.APP_FIREBASE_APP_ID as string,
-};
+import { firebaseConfig } from './firebase-config';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
