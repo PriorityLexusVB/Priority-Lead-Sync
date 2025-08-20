@@ -1,18 +1,8 @@
 {
-  "name": "priority-lead-sync",
-  "version": "1.0.0",
   "scripts": {
-    "rules:use:dev": "copy /Y firestore.leads.rules.dev firestore.leads.rules",
-    "rules:use:prod": "copy /Y firestore.leads.rules.prod firestore.leads.rules",
-    "deploy:rules:dev": "npm run rules:use:dev && firebase deploy --project priority-lead-sync --only firestore:rules:leads",
-    "deploy:rules:prod": "npm run rules:use:prod && firebase deploy --project priority-lead-sync --only firestore:rules:leads"
-  }
-}
-{
-  "scripts": {
-    "rules:dev:prep": "node -e \"require('fs').copyFileSync('firestore.leads.rules.dev','firestore.leads.rules')\"",
-    "rules:prod:prep": "node -e \"require('fs').copyFileSync('firestore.leads.rules.prod','firestore.leads.rules')\"",
-    "deploy:rules:dev": "npm run rules:dev:prep && firebase deploy --project priority-lead-sync --only firestore:rules",
-    "deploy:rules:prod": "npm run rules:prod:prep && firebase deploy --project priority-lead-sync --only firestore:rules"
+    "rules:dev:prep": "copy /Y firestore.leads.rules.dev firestore.leads.rules",
+    "rules:prod:prep": "copy /Y firestore.leads.rules.prod firestore.leads.rules",
+    "deploy:rules:dev": "npm run rules:dev:prep && firebase deploy --project priority-lead-sync --only firestore:rules:leads",
+    "deploy:rules:prod": "npm run rules:prod:prep && firebase deploy --project priority-lead-sync --only firestore:rules:leads"
   }
 }
