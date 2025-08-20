@@ -1,7 +1,47 @@
 // electron-app/main.js
-const { app, BrowserWindow, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { app, BrowserWindow, shell, ipcMain, net } = require('electron');
+
+// ---- Windows cache fix: keep profile + cache inside the project (writable) ----
+const userDataDir = path.join(process.cwd(), 'user-data');
+const diskCacheDir = path.join(process.cwd(), 'cache');
+for (const p of [userDataDir, diskCacheDir]) {
+  try { fs.mkdirSync(p, { recursive: true }); } catch {}
+}
+app.setPath('userData', userDataDir);
+app.commandLine.appendSwitch('disk-cache-dir', diskCacheDir);
+// Optional extra hammer if needed:
+// app.commandLine.appendSwitch('disable-http-cache');
+
+// ---- IPC: POST JSON via main process using electron.net (avoids CORS) ----
+ipcMain.handle('http:post-json', async (_evt, { url, headers = {}, body = {} }) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const request = net.request({ method: 'POST', url });
+      request.setHeader('Content-Type', 'application/json; charset=utf-8');
+      for (const [k, v] of Object.entries(headers)) request.setHeader(k, v);
+      let raw = '';
+      request.on('response', (res) => {
+        res.on('data', (chunk) => (raw += chunk));
+        res.on('end', () => {
+          resolve({
+            statusCode: res.statusCode,
+            headers: Object.fromEntries(
+              Object.entries(res.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : v])
+            ),
+            body: raw,
+          });
+        });
+      });
+      request.on('error', reject);
+      request.write(JSON.stringify(body));
+      request.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+});
 
 const DEV_URL = (process.env.VITE_DEV_SERVER_URL || '').trim();
 const IS_DEV = !!DEV_URL;
