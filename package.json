@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "rules:dev:prep": "copy /Y firestore.leads.rules.dev firestore.leads.rules",
-    "rules:prod:prep": "copy /Y firestore.leads.rules.prod firestore.leads.rules",
-    "deploy:rules:dev": "npm run rules:dev:prep && firebase deploy --project priority-lead-sync --only firestore:rules:leads",
-    "deploy:rules:prod": "npm run rules:prod:prep && firebase deploy --project priority-lead-sync --only firestore:rules:leads"
+    "deploy:functions:all": "firebase deploy --project priority-lead-sync --only functions",
+    "deploy:functions:webhook": "firebase deploy --project priority-lead-sync --only functions:receiveEmailLead",
+    "deploy:functions:health": "firebase deploy --project priority-lead-sync --only functions:health,functions:firestoreHealth,functions:gmailHealth,functions:testSecrets",
+    "deploy:rules": "firebase deploy --project priority-lead-sync --only firestore:rules"
   }
 }

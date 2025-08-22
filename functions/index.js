@@ -1,24 +1,16 @@
 // functions/index.js
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import { initializeApp, getApps, getApp } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import * as admin from "firebase-admin";
 import { google } from "googleapis";
 import { parseStringPromise } from "xml2js";
 
-/** ---------- Admin SDK bootstrap (explicit project binding) ---------- */
-const app = getApps().length ? getApp() : initializeApp({ projectId: "priority-lead-sync" });
-const db  = getFirestore(app);
-
-console.log("[boot] functions module loaded", {
-  node: process.version,
-  time: new Date().toISOString(),
-  projectId: app.options.projectId,
-});
-
-// (If you reference FieldValue elsewhere, switch to the imported one)
-// example:
-// lead.receivedAt = FieldValue.serverTimestamp();
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: "priority-lead-sync" // binds project; uses DEFAULT Firestore DB
+  });
+}
+const db = admin.firestore();
 
 /** ---------- Secrets (mounted from Secret Manager at runtime) ---------- */
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
@@ -68,32 +60,17 @@ export const testSecrets = onRequest(
 );
 
 /** ---------- Firestore health: default DB (no custom databaseId) ---------- */
-export const firestoreHealth = onRequest(
-  { region: "us-central1", minInstances: 1, timeoutSeconds: 30 },
-  async (_req, res) => {
-    try {
-      const ref = db.collection("ci-checks").doc("last-run");
-      await ref.set(
-        {
-          ranAt: FieldValue.serverTimestamp(),
-          // record where this ran, for sanity
-          projectId: app.options.projectId || "unknown",
-          node: process.version,
-        },
-        { merge: true }
-      );
-      const snap = await ref.get();
-      return res.status(200).json({
-        ok: true,
-        exists: snap.exists,
-        data: snap.exists ? snap.data() : null,
-      });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ ok: false, error: String(err) });
-    }
+export const firestoreHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
+  try {
+    const ref = db.collection("ci-checks").doc("last-run");
+    await ref.set({ ranAt: admin.firestore.FieldValue.serverTimestamp(), node: process.version }, { merge: true });
+    const snap = await ref.get();
+    return res.json({ ok: true, exists: snap.exists, data: snap.data() });
+  } catch (e) {
+    const err = e && e.code ? { code: e.code, message: String(e) } : { message: String(e) };
+    return res.status(500).json({ ok: false, error: err });
   }
-);
+});
 
 /** ---------- Gmail OAuth health ---------- */
 export const gmailHealth = onRequest(
@@ -183,7 +160,7 @@ export const receiveEmailLead = onRequest(
       }
 
       // Firestore write
-      lead.receivedAt = FieldValue.serverTimestamp();
+      lead.receivedAt = admin.firestore.FieldValue.serverTimestamp();
       await db.collection("leads_v2").add(lead);
 
       return res.status(200).json({ ok: true });

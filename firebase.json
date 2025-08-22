@@ -1,9 +1,8 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "firestore": {
-    "databases": {
-      "leads": {
-        "rules": "firestore.leads.rules"
-      }
-    }
+    "rules": "firestore.rules"
   }
 }
