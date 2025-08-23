@@ -1,14 +1,5 @@
 {
   "projects": {
     "default": "priority-lead-sync"
-  },
-  "targets": {
-    "priority-lead-sync": {
-      "firestore": {
-        "rules": {
-          "leads": ["leads"]
-        }
-      }
-    }
   }
 }

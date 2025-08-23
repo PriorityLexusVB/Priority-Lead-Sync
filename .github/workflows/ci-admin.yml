@@ -40,12 +40,11 @@ jobs:
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
-      - name: "Firestore sanity write (DB: leads)"
+      - name: "Firestore sanity write (default DB)"
         run: node scripts/run-admin.cjs
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GOOGLE_CLOUD_PROJECT: priority-lead-sync
-          FIRESTORE_DATABASE_ID: leads
 
       - name: Install Firebase CLI
         run: npm i -g firebase-tools

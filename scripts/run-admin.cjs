@@ -22,16 +22,15 @@ try {
   fail('firebase-admin init failed (check private_key; keep literal \\n).', e);
 }
 
-const databaseId = process.env.FIRESTORE_DATABASE_ID || 'leads';
-const db = getFirestore(undefined, databaseId);
+const db = getFirestore();
 
 (async () => {
   try {
     await db.collection('ci-checks').doc('last-run').set({
       ranAt: new Date().toISOString(),
-      databaseId,
+      databaseId: '(default)',
     });
-    console.log('Firestore write OK to database:', databaseId);
+    console.log('Firestore write OK to database: (default)');
   } catch (e) {
     fail('Firestore write failed (permissions or database ID).', e);
   }

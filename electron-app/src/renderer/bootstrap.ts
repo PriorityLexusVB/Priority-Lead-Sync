@@ -1,4 +1,4 @@
-import { connect, getRecentLeads, watchLeads } from "./firestore";
+import { getRecentLeads, watchLeads } from "./firestore";
 
 const fsState = document.getElementById("fs-state")!;
 const leadCount = document.getElementById("lead-count")!;
@@ -7,7 +7,6 @@ const result = document.getElementById("last-result") as HTMLPreElement;
 const button = document.getElementById("send-test") as HTMLButtonElement;
 
 (async () => {
-  connect();
   fsState.textContent = "connected";
 
   const initial = await getRecentLeads(20);
