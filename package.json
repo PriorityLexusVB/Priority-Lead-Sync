@@ -3,14 +3,23 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    /* ---------- tests (root) ---------- */
+    "test": "echo \"No tests at root. Try: npm test --prefix functions  or  npm test --prefix electron-app\"",
+
+    /* ---------- firestore rules (default DB, no billing) ---------- */
+    "rules:dev:prep": "node -e \"require('fs').copyFileSync('firestore.rules','firestore.rules')\"",
+    "rules:prod:prep": "node -e \"require('fs').copyFileSync('firestore.rules.prod','firestore.rules')\"",
+    "deploy:rules:dev": "npm run rules:dev:prep && firebase deploy --project priority-lead-sync --only firestore:rules",
+    "deploy:rules:prod": "npm run rules:prod:prep && firebase deploy --project priority-lead-sync --only firestore:rules",
+
+    /* ---------- functions deploy (kept from your file, plus an 'all') ---------- */
     "deploy:functions:all": "firebase deploy --project priority-lead-sync --only functions",
     "deploy:functions:webhook": "firebase deploy --project priority-lead-sync --only functions:receiveEmailLead",
     "deploy:functions:health": "firebase deploy --project priority-lead-sync --only functions:health,functions:firestoreHealth,functions:gmailHealth,functions:testSecrets",
-    "deploy:functions": "firebase deploy --only functions --project priority-lead-sync",
-    "deploy:all": "firebase deploy --project priority-lead-sync",
-    "rules:use:dev": "node -e \"require('fs').copyFileSync('firestore.rules','firestore.rules')\"",
-    "rules:use:prod": "node -e \"require('fs').copyFileSync('firestore.rules.prod','firestore.rules')\"",
-    "deploy:rules:dev": "npm run rules:use:dev && firebase deploy --only firestore:rules",
-    "deploy:rules:prod": "npm run rules:use:prod && firebase deploy --only firestore:rules"
+
+    /* ---------- convenience wrappers ---------- */
+    "functions:test": "npm test --prefix functions",
+    "electron:dev": "npm run dev --prefix electron-app",
+    "electron:build": "npm run build --prefix electron-app"
   }
 }
