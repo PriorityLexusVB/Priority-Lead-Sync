@@ -1,13 +1,12 @@
-// Default Firestore DB rules (dev-safe, client read only; writes via Functions only)
+// firestore.rules
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Allow read-only access from any client for dev/demo (tighten later)
+    // Read everything for now (dev); tighten later.
     match /{document=**} {
       allow read: if true;
-      allow write: if false; // all writes must go through Cloud Functions
+      // Block client writes (Functions will still write using Admin SDK)
+      allow write: if false;
     }
   }
 }
