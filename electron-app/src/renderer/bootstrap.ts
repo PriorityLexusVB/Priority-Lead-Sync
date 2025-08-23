@@ -1,33 +1,52 @@
-import { startPolling } from "./firestore";
-import { seenStore } from "./store";
+import { API_BASE } from "./firebase-config";
+import type { Lead } from "./store";
 
-function notifyLead(lead: any) {
-  const title = lead?.subject || "New lead";
-  const body  = `${lead?.customer?.name || ""} ${lead?.vehicle?.make || ""} ${lead?.vehicle?.model || ""}`.trim();
-  new Notification(title, { body });
+const list = document.getElementById("leads")!;
+const result = document.getElementById("last-result") as HTMLPreElement;
+const button = document.getElementById("send-test") as HTMLButtonElement;
+
+function renderLead(li: HTMLElement, lead: Lead) {
+  const name = lead.customer?.name ?? "";
+  const subj = lead.subject ?? "";
+  const veh = [lead.vehicle?.make, lead.vehicle?.model].filter(Boolean).join(" ");
+  li.textContent = `${subj} — ${name} — ${veh}`;
 }
 
-export function boot() {
-  const list = document.getElementById("lead-list")!;
-  startPolling((batch) => {
-    batch.forEach(lead => {
-      if (seenStore.has(lead.id)) return;
-      seenStore.add(lead.id);
-      // Render
+async function fetchLeads(limit = 25, sinceIso?: string): Promise<Lead[]> {
+  const url = new URL(`${API_BASE}/listLeads`);
+  url.searchParams.set("limit", String(limit));
+  if (sinceIso) url.searchParams.set("since", sinceIso);
+
+  const resp = await fetch(url.toString(), { method: "GET" });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  return (data?.items ?? []) as Lead[];
+}
+
+// simple poller
+let lastSeenIso: string | undefined;
+async function poll() {
+  try {
+    const items = await fetchLeads(25, lastSeenIso);
+    result.textContent = JSON.stringify({ count: items.length }, null, 2);
+
+    for (const lead of items.reverse()) {
       const li = document.createElement("li");
-      li.textContent = `${lead.receivedAt} – ${lead.customer?.name || "Unknown"} – ${lead.vehicle?.make || ""} ${lead.vehicle?.model || ""}`.trim();
+      renderLead(li, lead);
       list.prepend(li);
-      // Notify
-      notifyLead(lead);
-    });
-  }, 10000);
+      if (lead.receivedAt) lastSeenIso = lead.receivedAt;
+      // (optional) show a desktop notification here
+      // new Notification("New lead", { body: lead.subject ?? "New lead" });
+    }
+  } catch (e) {
+    console.error(e);
+    result.textContent = `Error: ${String(e)}`;
+  }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  if (Notification.permission === "default") {
-    Notification.requestPermission().then(() => boot());
-  } else {
-    boot();
-  }
-});
+setInterval(poll, 10_000);
+poll();
+
+// optional: manual refresh button
+button?.addEventListener("click", () => poll());
 

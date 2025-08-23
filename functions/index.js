@@ -127,62 +127,63 @@ export const receiveEmailLead = onRequest(
   }
 );
 
-// ----- NEW: listLeads endpoint (server reads, secured) -----
+// ----- listLeads: public read endpoint with CORS -----
 export const listLeads = onRequest(
-  { region: "us-central1", secrets: [GMAIL_WEBHOOK_SECRET], timeoutSeconds: 30, maxInstances: 10 },
+  {
+    region: "us-central1",
+    timeoutSeconds: 30,
+    // NOTE: no secrets needed here for read-only list
+    // Add minInstances if you want (Spark-friendly to keep cold starts)
+  },
   async (req, res) => {
-    const provided = (req.header("x-webhook-secret") || "").trim();
-    const expected = (process.env.GMAIL_WEBHOOK_SECRET || "").trim();
-    if (!expected || provided !== expected) {
-      return res.status(401).json({ ok: false, error: "Unauthorized" });
-    }
-
     try {
-      const { db } = ensureAdmin();
-      const limit = Math.min(parseInt(String(req.query.limit || "25"), 10) || 25, 100);
-      const since = req.query.since ? new Date(String(req.query.since)) : null;
+      // Basic CORS for Electron (file:// origin becomes 'null', so allow all here)
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      if (req.method === "OPTIONS") return res.status(204).end();
 
-      let q = db.collection("leads_v2").orderBy("receivedAt", "desc").limit(limit);
+      const { db } = ensureAdmin();
+
+      // inputs
+      const limitParam = Math.max(1, Math.min(100, parseInt(String(req.query.limit || "50"), 10)));
+      const sinceParam = String(req.query.since || "").trim();
+      const since = sinceParam ? new Date(sinceParam) : null;
+
+      let q = db.collection("leads_v2");
+
+      // IMPORTANT: since you write receivedAt as FieldValue.serverTimestamp(),
+      // ensure it is materialized as Firestore Timestamp on documents.
+      q = q.orderBy("receivedAt", "desc");
+
       if (since && !isNaN(since.getTime())) {
-        // Note: querying by serverTimestamp requires it to be materialized,
-        // so we filter post-query as a simple fallback.
-        const snap = await q.get();
-        const items = [];
-        snap.forEach(doc => {
-          const d = doc.data();
-          const ts = d.receivedAt?.toDate?.() || d.receivedAt;
-          if (!since || (ts && ts > since)) {
-            items.push({
-              id: doc.id,
-              receivedAt: ts ? ts.toISOString() : null,
-              subject: d.subject || null,
-              vehicle: d.vehicle || null,
-              customer: d.customer || null,
-              source: d.source || null
-            });
-          }
-        });
-        return res.json({ ok: true, items });
-      } else {
-        const snap = await q.get();
-        const items = [];
-        snap.forEach(doc => {
-          const d = doc.data();
-          const ts = d.receivedAt?.toDate?.() || d.receivedAt;
-          items.push({
-            id: doc.id,
-            receivedAt: ts ? ts.toISOString() : null,
-            subject: d.subject || null,
-            vehicle: d.vehicle || null,
-            customer: d.customer || null,
-            source: d.source || null
-          });
-        });
-        return res.json({ ok: true, items });
+        // Filter at the DB level for efficiency
+        q = q.where("receivedAt", ">", since);
       }
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ ok: false, error: String(e) });
+
+      q = q.limit(limitParam);
+
+      const snap = await q.get();
+      const items = snap.docs.map((doc) => {
+        const d = doc.data();
+        const ts =
+          typeof d.receivedAt?.toDate === "function"
+            ? d.receivedAt.toDate()
+            : (d.receivedAt && new Date(d.receivedAt)) || null;
+        return {
+          id: doc.id,
+          receivedAt: ts ? ts.toISOString() : null,
+          subject: d.subject || null,
+          vehicle: d.vehicle || null,
+          customer: d.customer || null,
+          source: d.source || null,
+        };
+      });
+
+      return res.json({ ok: true, items });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ ok: false, error: String(err) });
     }
   }
 );
