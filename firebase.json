@@ -1,10 +1,7 @@
 {
   "firestore": {
     "rules": [
-      {
-        "target": "leads",
-        "rules": "firestore.rules"
-      }
+      { "database": "leads", "rules": "firestore.rules" }
     ]
   }
 }

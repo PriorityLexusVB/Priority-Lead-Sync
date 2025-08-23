@@ -23,8 +23,7 @@ try {
 }
 
 const databaseId = process.env.FIRESTORE_DATABASE_ID || 'leads';
-const db = getFirestore();
-db.settings({ databaseId }); // target non-default DB immediately
+const db = getFirestore(undefined, databaseId);
 
 (async () => {
   try {

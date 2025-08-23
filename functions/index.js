@@ -2,15 +2,16 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import { google } from "googleapis";
 import { parseStringPromise } from "xml2js";
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    projectId: "priority-lead-sync" // binds project; uses DEFAULT Firestore DB
+    projectId: "priority-lead-sync"
   });
 }
-const db = admin.firestore();
+const db = getFirestore(undefined, "leads");
 
 /** ---------- Secrets (mounted from Secret Manager at runtime) ---------- */
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
@@ -59,7 +60,7 @@ export const testSecrets = onRequest(
   }
 );
 
-/** ---------- Firestore health: default DB (no custom databaseId) ---------- */
+/** ---------- Firestore health: "leads" DB ---------- */
 export const firestoreHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
   try {
     const ref = db.collection("ci-checks").doc("last-run");
