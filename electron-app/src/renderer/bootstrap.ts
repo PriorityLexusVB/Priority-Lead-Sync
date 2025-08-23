@@ -1,33 +1,33 @@
-import { getRecentLeads, watchLeads } from "./firestore";
+import { startPolling } from "./firestore";
+import { seenStore } from "./store";
 
-const fsState = document.getElementById("fs-state")!;
-const leadCount = document.getElementById("lead-count")!;
-const list = document.getElementById("leads")!;
-const result = document.getElementById("last-result") as HTMLPreElement;
-const button = document.getElementById("send-test") as HTMLButtonElement;
+function notifyLead(lead: any) {
+  const title = lead?.subject || "New lead";
+  const body  = `${lead?.customer?.name || ""} ${lead?.vehicle?.make || ""} ${lead?.vehicle?.model || ""}`.trim();
+  new Notification(title, { body });
+}
 
-(async () => {
-  fsState.textContent = "connected";
+export function boot() {
+  const list = document.getElementById("lead-list")!;
+  startPolling((batch) => {
+    batch.forEach(lead => {
+      if (seenStore.has(lead.id)) return;
+      seenStore.add(lead.id);
+      // Render
+      const li = document.createElement("li");
+      li.textContent = `${lead.receivedAt} – ${lead.customer?.name || "Unknown"} – ${lead.vehicle?.make || ""} ${lead.vehicle?.model || ""}`.trim();
+      list.prepend(li);
+      // Notify
+      notifyLead(lead);
+    });
+  }, 10000);
+}
 
-  const initial = await getRecentLeads(20);
-  leadCount.textContent = String(initial.size);
-  list.innerHTML = initial.docs.map(d => `<li>${d.id}: ${JSON.stringify(d.data())}</li>`).join("");
+document.addEventListener("DOMContentLoaded", () => {
+  if (Notification.permission === "default") {
+    Notification.requestPermission().then(() => boot());
+  } else {
+    boot();
+  }
+});
 
-  watchLeads((docs) => {
-    leadCount.textContent = String(docs.length);
-    list.innerHTML = docs.map(d => `<li>${d.id}: ${JSON.stringify(d)}</li>`).join("");
-  });
-
-  button.onclick = async () => {
-    const payload = {
-      source: "desktop-test",
-      format: "json",
-      subject: "Electron Test Lead",
-      from: "customer@example.com",
-      body: "Interested in RX350",
-    };
-    const url = "https://receiveemaillead-puboig54jq-uc.a.run.app";
-    const res = await (window as any).leadSync.postJson(url, payload, { "x-webhook-secret": "PriorityLead2025SecretKey" });
-    result.textContent = JSON.stringify(res.json ?? res, null, 2);
-  };
-})();

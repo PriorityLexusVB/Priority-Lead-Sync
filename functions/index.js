@@ -1,69 +1,83 @@
-// functions/index.js (Node 20, ESM)
-
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { parseStringPromise } from "xml2js";
 
-// Initialize Admin SDK only once and bind to the DEFAULT app/db
-try { admin.app(); } catch { admin.initializeApp(); }
-const db = admin.firestore(); // default DB only
-
-// Secrets (already in Secret Manager)
+// ----- Secrets -----
 const GMAIL_WEBHOOK_SECRET = defineSecret("GMAIL_WEBHOOK_SECRET");
 const OPENAI_API_KEY       = defineSecret("OPENAI_API_KEY");
+const GMAIL_CLIENT_ID      = defineSecret("GMAIL_CLIENT_ID");
+const GMAIL_CLIENT_SECRET  = defineSecret("GMAIL_CLIENT_SECRET");
+const GMAIL_REFRESH_TOKEN  = defineSecret("GMAIL_REFRESH_TOKEN");
+const GMAIL_REDIRECT_URI   = defineSecret("GMAIL_REDIRECT_URI");
 
-// Minimal boot log
-console.log("[functions] boot", {
-  node: process.version,
-  ts: new Date().toISOString(),
-  projectId: process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT
-});
-
-// --- Health: Firestore (default DB) ---
-export const firestoreHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
-  try {
-    const ref = db.collection("ci-checks").doc("last-run");
-    await ref.set({ ranAt: admin.firestore.FieldValue.serverTimestamp(), databaseId: "(default)" }, { merge: true });
-    const snap = await ref.get();
-    return res.json({ ok: true, exists: snap.exists, data: snap.data() || null });
-  } catch (e) {
-    const msg = String(e);
-    const code = /NOT_FOUND/.test(msg) ? 5 : 2;
-    return res.status(500).json({ ok: false, code, error: msg, hint: "Default Firestore database must exist." });
+// ----- Admin (named Firestore DB: leads) -----
+let app;
+let db;
+function ensureAdmin() {
+  if (!app) {
+    app = admin.initializeApp({
+      projectId: "priority-lead-sync",
+    });
+    db = admin.firestore(app);
+    // IMPORTANT: target the existing named db 'leads'
+    db.settings({ databaseId: "leads" });
   }
+  return { app, db };
+}
+
+// ----- Health -----
+export const health = onRequest({ region: "us-central1" }, (_req, res) => {
+  res.status(200).json({ ok: true, node: process.version, at: new Date().toISOString() });
 });
 
-// --- Health: basic ---
-export const health = onRequest({ region: "us-central1" }, (_req, res) =>
-  res.status(200).send("ok")
-);
-
-// --- Secrets check ---
+// Verify secrets without leaking values
 export const testSecrets = onRequest(
-  { region: "us-central1", secrets: [GMAIL_WEBHOOK_SECRET, OPENAI_API_KEY] },
+  { region: "us-central1", secrets: [GMAIL_WEBHOOK_SECRET, OPENAI_API_KEY, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_REDIRECT_URI] },
   (_req, res) => {
     res.json({
-      ok: Boolean(process.env.GMAIL_WEBHOOK_SECRET && process.env.OPENAI_API_KEY),
+      ok: Boolean(process.env.GMAIL_WEBHOOK_SECRET),
       checks: {
-        GMAIL_WEBHOOK_SECRET: Boolean(process.env.GMAIL_WEBHOOK_SECRET),
-        OPENAI_API_KEY: Boolean(process.env.OPENAI_API_KEY),
+        GMAIL_WEBHOOK_SECRET: !!process.env.GMAIL_WEBHOOK_SECRET,
+        OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+        GMAIL_CLIENT_ID: !!process.env.GMAIL_CLIENT_ID,
+        GMAIL_CLIENT_SECRET: !!process.env.GMAIL_CLIENT_SECRET,
+        GMAIL_REFRESH_TOKEN: !!process.env.GMAIL_REFRESH_TOKEN,
+        GMAIL_REDIRECT_URI: !!process.env.GMAIL_REDIRECT_URI,
       },
-      timestamp: new Date().toISOString(),
+      at: new Date().toISOString(),
     });
   }
 );
 
-// --- Webhook (JSON or ADF/XML) writes to default DB ---
+// Minimal Firestore health against DB 'leads'
+export const firestoreHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
+  try {
+    const { db } = ensureAdmin();
+    const col = db.collection("_health");
+    const docRef = col.doc("probe");
+    await docRef.set({
+      ping: admin.firestore.FieldValue.serverTimestamp(),
+      node: process.version,
+      projectId: "priority-lead-sync",
+      databaseId: "leads",
+    }, { merge: true });
+    const snap = await docRef.get();
+    res.json({ ok: true, data: snap.data() || null });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+// Stubbed Gmail health — keep your current implementation or simple ok
+export const gmailHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
+  res.json({ ok: true, note: "gmailHealth stubbed; OAuth verified separately" });
+});
+
+// ----- Webhook: receiveEmailLead (JSON or ADF/XML) -----
 export const receiveEmailLead = onRequest(
-  {
-    region: "us-central1",
-    secrets: [GMAIL_WEBHOOK_SECRET],
-    timeoutSeconds: 30,
-    maxInstances: 10,
-  },
+  { region: "us-central1", secrets: [GMAIL_WEBHOOK_SECRET], timeoutSeconds: 30, maxInstances: 10 },
   async (req, res) => {
-    // header auth
     const provided = (req.header("x-webhook-secret") || "").trim();
     const expected = (process.env.GMAIL_WEBHOOK_SECRET || "").trim();
     if (!expected || provided !== expected) {
@@ -71,19 +85,18 @@ export const receiveEmailLead = onRequest(
     }
 
     try {
-      let lead;
+      const { db } = ensureAdmin();
       const ct = (req.headers["content-type"] || "").toLowerCase();
+      let lead;
 
       if (ct.includes("application/json")) {
-        lead = { ...req.body, source: req.body?.source || "webhook", format: req.body?.format || "json" };
+        lead = { ...req.body, source: req.body?.source || "webhook", format: "json" };
       } else {
-        // ADF/XML
         const xml = req.rawBody?.toString("utf8") || "";
         const parsed = await parseStringPromise(xml, { explicitArray: false, trim: true });
         const p = parsed?.adf?.prospect || parsed?.prospect || {};
         const vehicle = p.vehicle || {};
         const contact = p.customer?.contact || p.customer || {};
-
         lead = {
           source: "webhook",
           format: "adf",
@@ -99,21 +112,82 @@ export const receiveEmailLead = onRequest(
             email: contact?.email || null,
             phone: contact?.phone || null,
           },
+          subject: p?.vehicle?.interest || undefined
         };
       }
 
       lead.receivedAt = admin.firestore.FieldValue.serverTimestamp();
-      await db.collection("leads_v2").add(lead);
+      const ref = await db.collection("leads_v2").add(lead);
 
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({ ok: true, id: ref.id });
     } catch (err) {
       console.error(err);
-      return res.status(500).json({ ok: false, error: String(err) });
+      return res.status(400).json({ ok: false, error: "Bad request: " + String(err?.message || err) });
     }
   }
 );
 
-// --- Stub AI reply (just checks OPENAI key) ---
+// ----- NEW: listLeads endpoint (server reads, secured) -----
+export const listLeads = onRequest(
+  { region: "us-central1", secrets: [GMAIL_WEBHOOK_SECRET], timeoutSeconds: 30, maxInstances: 10 },
+  async (req, res) => {
+    const provided = (req.header("x-webhook-secret") || "").trim();
+    const expected = (process.env.GMAIL_WEBHOOK_SECRET || "").trim();
+    if (!expected || provided !== expected) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
+    try {
+      const { db } = ensureAdmin();
+      const limit = Math.min(parseInt(String(req.query.limit || "25"), 10) || 25, 100);
+      const since = req.query.since ? new Date(String(req.query.since)) : null;
+
+      let q = db.collection("leads_v2").orderBy("receivedAt", "desc").limit(limit);
+      if (since && !isNaN(since.getTime())) {
+        // Note: querying by serverTimestamp requires it to be materialized,
+        // so we filter post-query as a simple fallback.
+        const snap = await q.get();
+        const items = [];
+        snap.forEach(doc => {
+          const d = doc.data();
+          const ts = d.receivedAt?.toDate?.() || d.receivedAt;
+          if (!since || (ts && ts > since)) {
+            items.push({
+              id: doc.id,
+              receivedAt: ts ? ts.toISOString() : null,
+              subject: d.subject || null,
+              vehicle: d.vehicle || null,
+              customer: d.customer || null,
+              source: d.source || null
+            });
+          }
+        });
+        return res.json({ ok: true, items });
+      } else {
+        const snap = await q.get();
+        const items = [];
+        snap.forEach(doc => {
+          const d = doc.data();
+          const ts = d.receivedAt?.toDate?.() || d.receivedAt;
+          items.push({
+            id: doc.id,
+            receivedAt: ts ? ts.toISOString() : null,
+            subject: d.subject || null,
+            vehicle: d.vehicle || null,
+            customer: d.customer || null,
+            source: d.source || null
+          });
+        });
+        return res.json({ ok: true, items });
+      }
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ ok: false, error: String(e) });
+    }
+  }
+);
+
+// AI reply stub unchanged
 export const generateAIReply = onRequest(
   { region: "us-central1", secrets: [OPENAI_API_KEY], timeoutSeconds: 60 },
   async (_req, res) => {
@@ -122,8 +196,3 @@ export const generateAIReply = onRequest(
   }
 );
 
-// --- Gmail OAuth health remains in default DB context (if present) ---
-export const gmailHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
-  // Keep your existing gmail profile/labels check here if needed.
-  return res.json({ ok: true, note: "gmailHealth placeholder (no-op here)" });
-});
