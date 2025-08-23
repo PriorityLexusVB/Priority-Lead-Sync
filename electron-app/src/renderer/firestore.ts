@@ -6,7 +6,7 @@ let _db;
 export function connect() {
   if (!_db) {
     const app = initializeApp(firebaseWebConfig);
-    _db = getFirestore(app);
+    _db = getFirestore(app, "leads");
   }
   return _db;
 }
