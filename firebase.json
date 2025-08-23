@@ -1,8 +1,8 @@
 {
   "firestore": {
-    "rules": [
-      { "target": "leads", "rules": "firestore.rules" }
-    ]
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions"
   }
 }
-

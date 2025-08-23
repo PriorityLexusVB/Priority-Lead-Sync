@@ -6,6 +6,8 @@
     "deploy:functions:all": "firebase deploy --project priority-lead-sync --only functions",
     "deploy:functions:webhook": "firebase deploy --project priority-lead-sync --only functions:receiveEmailLead",
     "deploy:functions:health": "firebase deploy --project priority-lead-sync --only functions:health,functions:firestoreHealth,functions:gmailHealth,functions:testSecrets",
-    "deploy:rules": "firebase deploy --project priority-lead-sync --only firestore:rules"
+    "deploy:rules": "firebase deploy --only firestore:rules --project priority-lead-sync",
+    "deploy:functions": "firebase deploy --only functions --project priority-lead-sync",
+    "deploy:all": "firebase deploy --project priority-lead-sync"
   }
 }

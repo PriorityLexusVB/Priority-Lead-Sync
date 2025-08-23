@@ -1,8 +1,8 @@
-// TEMP DEV RULES — lets Electron read; server writes via Admin SDK ignore rules
+// TEMP dev rules: open reads so the console and Electron can see docs.
+// Admin SDK (Cloud Functions) will do writes; clients cannot write.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Read-only for everyone (dev). Tighten later for prod.
     match /{document=**} {
       allow read: if true;
       allow write: if false;
