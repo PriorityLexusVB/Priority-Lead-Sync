@@ -17,6 +17,7 @@ const ENV = {
 };
 
 /** Admin init – bind to project + named DB "leads" */
+ codex/update-firebase-functions-for-spark-mode-2k498v
 let app;
 let db;
 function ensureAdmin() {
@@ -26,8 +27,19 @@ function ensureAdmin() {
     });
     db = admin.firestore(app);
     db.settings({ databaseId: "leads" }); // <— IMPORTANT: use existing named DB
+
+let _app;
+let _db;
+function ensureAdmin() {
+  if (!_app) {
+    _app = admin.initializeApp({
+      projectId: "priority-lead-sync",
+    });
+    _db = admin.firestore(_app);
+    _db.settings({ databaseId: "leads" }); // <— IMPORTANT: use existing named DB
+ main
   }
-  return { app, db };
+  return { app: _app, db: _db };
 }
 
 /** Health */
@@ -81,7 +93,11 @@ export const gmailHealth = onRequest({ region: "us-central1" }, async (_req, res
 export const receiveEmailLead = onRequest(
   { region: "us-central1", timeoutSeconds: 30, maxInstances: 10 },
   async (req, res) => {
+ codex/update-firebase-functions-for-spark-mode-2k498v
     // cheap auth with timing-safe comparison
+
+    // cheap auth
+ main
     const provided = (req.header("x-webhook-secret") || "").trim();
     const expected = (ENV.GMAIL_WEBHOOK_SECRET || "").trim();
     if (!expected) {
@@ -156,10 +172,15 @@ export const listLeads = onRequest({ region: "us-central1", timeoutSeconds: 30 }
 
     const { db } = ensureAdmin();
 
+ codex/update-firebase-functions-for-spark-mode-2k498v
     const limitQuery = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
     const limitParam = Math.max(1, Math.min(100, parseInt(String(limitQuery || "50"), 10)));
     const sinceQuery = Array.isArray(req.query.since) ? req.query.since[0] : req.query.since;
     const sinceParam = String(sinceQuery || "").trim();
+
+    const limitParam = Math.max(1, Math.min(100, parseInt(String(req.query.limit || "50"), 10)));
+    const sinceParam = String(req.query.since || "").trim();
+ main
     const since = sinceParam ? new Date(sinceParam) : null;
 
     let q = db.collection("leads_v2").orderBy("receivedAt", "desc");
