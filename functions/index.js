@@ -1,5 +1,6 @@
 import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import crypto from "crypto";
 import { parseStringPromise } from "xml2js";
 
 /**
@@ -16,6 +17,17 @@ const ENV = {
 };
 
 /** Admin init – bind to project + named DB "leads" */
+ codex/update-firebase-functions-for-spark-mode-2k498v
+let app;
+let db;
+function ensureAdmin() {
+  if (!app) {
+    app = admin.initializeApp({
+      projectId: "priority-lead-sync",
+    });
+    db = admin.firestore(app);
+    db.settings({ databaseId: "leads" }); // <— IMPORTANT: use existing named DB
+
 let _app;
 let _db;
 function ensureAdmin() {
@@ -25,6 +37,7 @@ function ensureAdmin() {
     });
     _db = admin.firestore(_app);
     _db.settings({ databaseId: "leads" }); // <— IMPORTANT: use existing named DB
+ main
   }
   return { app: _app, db: _db };
 }
@@ -80,10 +93,22 @@ export const gmailHealth = onRequest({ region: "us-central1" }, async (_req, res
 export const receiveEmailLead = onRequest(
   { region: "us-central1", timeoutSeconds: 30, maxInstances: 10 },
   async (req, res) => {
+ codex/update-firebase-functions-for-spark-mode-2k498v
+    // cheap auth with timing-safe comparison
+
     // cheap auth
+ main
     const provided = (req.header("x-webhook-secret") || "").trim();
     const expected = (ENV.GMAIL_WEBHOOK_SECRET || "").trim();
-    if (!expected || provided !== expected) {
+    if (!expected) {
+      return res.status(401).json({ ok: false, error: "Unauthorized: secret not configured." });
+    }
+    const providedBuf = Buffer.from(provided);
+    const expectedBuf = Buffer.from(expected);
+    if (
+      providedBuf.length !== expectedBuf.length ||
+      !crypto.timingSafeEqual(providedBuf, expectedBuf)
+    ) {
       return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
@@ -147,8 +172,15 @@ export const listLeads = onRequest({ region: "us-central1", timeoutSeconds: 30 }
 
     const { db } = ensureAdmin();
 
+ codex/update-firebase-functions-for-spark-mode-2k498v
+    const limitQuery = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+const limitParam = Math.max(1, Math.min(100, parseInt(limitQuery, 10) || 50));
+    const sinceQuery = Array.isArray(req.query.since) ? req.query.since[0] : req.query.since;
+    const sinceParam = String(sinceQuery || "").trim();
+
     const limitParam = Math.max(1, Math.min(100, parseInt(String(req.query.limit || "50"), 10)));
     const sinceParam = String(req.query.since || "").trim();
+ main
     const since = sinceParam ? new Date(sinceParam) : null;
 
     let q = db.collection("leads_v2").orderBy("receivedAt", "desc");

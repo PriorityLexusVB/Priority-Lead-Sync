@@ -9,6 +9,19 @@ $Body = @{
   subject = "Test Lead"
   from = "customer@example.com"
   body = "Interested in a Lexus RX350"
+ codex/update-firebase-functions-for-spark-mode-2k498v
+  vehicle = @{
+    year = 2023
+    make = "Lexus"
+    model = "RX350"
+  }
+  customer = @{
+    name = "Jane Doe"
+    email = "customer@example.com"
+    phone = "555-123-4567"
+  }
+
+ main
 } | ConvertTo-Json
 
 Invoke-WebRequest -Uri $Url -Method POST `
