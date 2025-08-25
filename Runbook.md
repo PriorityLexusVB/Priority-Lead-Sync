@@ -93,7 +93,7 @@ Invoke-WebRequest `
   Select -Expand Content
 ```
 
-Result: `{\"ok\":true}` and a document in Firestore → `leads_v2`.
+Result: `{"ok":true}` and a document in Firestore → `leads_v2`.
 
 Firestore rules  
 Only the Cloud Functions service identity may write.  
