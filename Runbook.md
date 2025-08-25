@@ -58,7 +58,7 @@ curl -s https://firestorehealth-puboig54jq-uc.a.run.app
 curl -s https://gmailhealth-puboig54jq-uc.a.run.app
 ```
 
-Expected: `{\"ok\":true,...}`; `testSecrets` shows true for all required secrets.
+Expected: `{"ok":true,...}`; `testSecrets` shows true for all required secrets.
 
 Send a test lead  
 JSON
