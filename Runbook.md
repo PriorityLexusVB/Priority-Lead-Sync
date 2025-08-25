@@ -1,36 +1,3 @@
- codex/finalize-and-verify-priority-lead-sync
-# Priority Lead Sync Runbook
-
-## Endpoints
-- **health**: https://health-puboig54jq-uc.a.run.app
-- **testSecrets**: https://testsecrets-puboig54jq-uc.a.run.app
-- **firestoreHealth**: https://firestorehealth-puboig54jq-uc.a.run.app
-- **gmailHealth**: https://gmailhealth-puboig54jq-uc.a.run.app
-- **receiveEmailLead**: https://receiveemaillead-puboig54jq-uc.a.run.app
-
-## Secrets (names only)
-- FIREBASE_PROJECT_ID
-- FIREBASE_SERVICE_ACCOUNT
-- WEBHOOK_BASE_URL
-- GMAIL_WEBHOOK_SECRET
-- OPENAI_API_KEY
-- GMAIL_CLIENT_ID
-- GMAIL_CLIENT_SECRET
-- GMAIL_REFRESH_TOKEN
-- GMAIL_REDIRECT_URI
-- (optional) HEALTH_FIRESTORE_URL, HEALTH_GMAIL_URL, HEALTH_TESTSECRETS_URL
-
-## Tests
-- `npm test --prefix functions`
-- `newman run tests/Priority-Lead-Sync.postman_collection.json --env-var baseUrl=$WEBHOOK_BASE_URL --env-var webhookSecret=$GMAIL_WEBHOOK_SECRET`
-
-## CI
-GitHub Actions workflow at `.github/workflows/ci.yml` installs deps, runs unit tests and Postman smoke tests, then deploys Cloud Functions and Firestore rules using the service account in secrets.
-
-## Troubleshooting
-- `curl $HEALTH_FIRESTORE_URL`, `curl $HEALTH_GMAIL_URL`, `curl $HEALTH_TESTSECRETS_URL` for basic checks.
-- Firestore writes are stored in the `leads_v2` collection.
-=======
 # Runbook – Priority Lead Sync
 
 This app ingests lead payloads (JSON or ADF/XML), writes them to Firestore, and exposes health checks. Deploys are handled by GitHub Actions.
@@ -45,7 +12,7 @@ This app ingests lead payloads (JSON or ADF/XML), writes them to Firestore, and 
 - **gmailHealth**: `https://gmailhealth-puboig54jq-uc.a.run.app`
 - **receiveEmailLead**: `https://receiveemaillead-puboig54jq-uc.a.run.app`
 
-Webhook header: `x-webhook-secret: PriorityLead2025SecretKey`  
+Webhook header: `x-webhook-secret: PriorityLead2025SecretKey`
 Primary collection: `leads_v2`
 
 ---
@@ -59,8 +26,8 @@ Workflow: **Actions → CI & Deploy (Priority-Lead-Sync)**
 - Manual “Run workflow” in the Actions tab
 
 ### What it does
-1) Install deps & run tests (Jest + Postman)  
-2) Deploy Cloud Functions & Firestore rules  
+1) Install deps & run tests (Jest + Postman)
+2) Deploy Cloud Functions & Firestore rules
 3) (Optional) Hit health URLs if configured
 
 ### Required GitHub Secrets
@@ -68,7 +35,7 @@ Workflow: **Actions → CI & Deploy (Priority-Lead-Sync)**
 - `FIREBASE_SERVICE_ACCOUNT` = contents of the service-account JSON (one line)
 - `WEBHOOK_BASE_URL` = `https://receiveemaillead-puboig54jq-uc.a.run.app`
 - `GMAIL_WEBHOOK_SECRET` = `PriorityLead2025SecretKey`
-- Optional health probes:  
+- Optional health probes:
   - `HEALTH_FIRESTORE_URL`, `HEALTH_GMAIL_URL`, `HEALTH_TESTSECRETS_URL`
 
 ---
@@ -81,19 +48,21 @@ Invoke-WebRequest -Uri "https://health-puboig54jq-uc.a.run.app" -Method GET | Se
 Invoke-WebRequest -Uri "https://testsecrets-puboig54jq-uc.a.run.app" -Method GET | Select -Expand Content
 Invoke-WebRequest -Uri "https://firestorehealth-puboig54jq-uc.a.run.app" -Method GET | Select -Expand Content
 Invoke-WebRequest -Uri "https://gmailhealth-puboig54jq-uc.a.run.app" -Method GET | Select -Expand Content
+```
 
 curl
+```bash
 curl -s https://health-puboig54jq-uc.a.run.app
 curl -s https://testsecrets-puboig54jq-uc.a.run.app
 curl -s https://firestorehealth-puboig54jq-uc.a.run.app
 curl -s https://gmailhealth-puboig54jq-uc.a.run.app
 ```
 
+Expected: `{\"ok\":true,...}`; `testSecrets` shows true for all required secrets.
 
-Expected: {"ok":true,...}; testSecrets shows true for all required secrets.
-
-Send a test lead
+Send a test lead  
 JSON
+```powershell
 Invoke-WebRequest `
   -Uri "https://receiveemaillead-puboig54jq-uc.a.run.app" `
   -Method POST `
@@ -101,8 +70,10 @@ Invoke-WebRequest `
   -Body '{"source":"webhook","format":"json","subject":"Test Lead","from":"customer@example.com","body":"Interested in a Lexus RX350"}' `
   -ContentType "application/json" |
   Select -Expand Content
+```
 
 ADF/XML
+```powershell
 $xml = @"
 <?xml version="1.0"?>
 <adf>
@@ -120,44 +91,33 @@ Invoke-WebRequest `
   -Body ([Text.Encoding]::UTF8.GetBytes($xml)) `
   -ContentType "application/xml" |
   Select -Expand Content
+```
 
+Result: `{\"ok\":true}` and a document in Firestore → `leads_v2`.
 
-Result: {"ok":true} and a document in Firestore → leads_v2.
-
-Firestore rules
-
-Only the Cloud Functions service identity may write.
-
+Firestore rules  
+Only the Cloud Functions service identity may write.  
 If a client write fails, check rules deployment and IAM roles.
 
-Troubleshooting
-
-401 Unauthorized → check x-webhook-secret header.
-
-400 Invalid body → wrong Content-Type or malformed JSON/XML.
-
-500 Internal error → check Cloud Run logs.
-
-Firestore NOT_FOUND → ensure database exists in Firebase Console.
-
+Troubleshooting  
+401 Unauthorized → check x-webhook-secret header.  
+400 Invalid body → wrong Content-Type or malformed JSON/XML.  
+500 Internal error → check Cloud Run logs.  
+Firestore NOT_FOUND → ensure database exists in Firebase Console.  
 CI deploy fails → confirm GitHub Secrets and IAM roles are set.
 
-Local deploy (fallback)
+Local deploy (fallback)  
+```
 firebase deploy --project priority-lead-sync --only functions
 firebase deploy --project priority-lead-sync --only firestore:rules
+```
 
-Support checklist
-
-Endpoint URL + response body
-
-Timestamp (UTC)
-
-GitHub Actions run link
-
+Support checklist  
+Endpoint URL + response body  
+Timestamp (UTC)  
+GitHub Actions run link  
 Recent config/secret changes
-
 
 ---
 
 👉 You can send this `Runbook.md` file straight to Codex — it gives them the **full environment map, secrets they need to set, endpoints, test commands, and troubleshooting steps**.
- main
