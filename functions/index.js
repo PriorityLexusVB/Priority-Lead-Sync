@@ -1,82 +1,86 @@
 import { onRequest } from "firebase-functions/v2/https";
-// ✂️ remove: import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { parseStringPromise } from "xml2js";
 
-// ---------- Spark-friendly env (no Secret Manager) ----------
+/**
+ * Spark mode:
+ * - If SPARK_ONLY=1, we DO NOT depend on Secret Manager and read directly from process.env.
+ * - Keep Firestore bound to the existing named database "leads" so we don't create default DB.
+ */
 const SPARK_ONLY = process.env.SPARK_ONLY === "1";
 
-// Read from .env (the Firebase CLI already logs "Loaded environment variables from .env.")
+/** Env values (always read from process.env in Spark mode) */
 const ENV = {
   GMAIL_WEBHOOK_SECRET: process.env.GMAIL_WEBHOOK_SECRET || "",
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
-  GMAIL_CLIENT_ID: process.env.GMAIL_CLIENT_ID || "",
-  GMAIL_CLIENT_SECRET: process.env.GMAIL_CLIENT_SECRET || "",
-  GMAIL_REFRESH_TOKEN: process.env.GMAIL_REFRESH_TOKEN || "",
-  GMAIL_REDIRECT_URI: process.env.GMAIL_REDIRECT_URI || "",
 };
 
-// ---------- Admin (default Firestore DB) ----------
-let app;
-let db;
+/** Admin init – bind to project + named DB "leads" */
+let _app;
+let _db;
 function ensureAdmin() {
-  if (!app) {
-    app = admin.initializeApp({ projectId: "priority-lead-sync" });
-    db = admin.firestore(app); // default database (Spark OK)
+  if (!_app) {
+    _app = admin.initializeApp({
+      projectId: "priority-lead-sync",
+    });
+    _db = admin.firestore(_app);
+    _db.settings({ databaseId: "leads" }); // <— IMPORTANT: use existing named DB
   }
-  return { app, db };
+  return { app: _app, db: _db };
 }
 
-// ---------- Health ----------
+/** Health */
 export const health = onRequest({ region: "us-central1" }, (_req, res) => {
   res.status(200).json({ ok: true, node: process.version, at: new Date().toISOString() });
 });
 
-// Show which env vars are present (values not leaked)
+/** Verify "secrets" (in Spark we just check envs — nothing hits Secret Manager) */
 export const testSecrets = onRequest({ region: "us-central1" }, (_req, res) => {
   res.json({
-    ok: true,
-    checks: Object.fromEntries(
-      Object.entries(ENV).map(([k, v]) => [k, Boolean(v)])
-    ),
+    ok: Boolean(ENV.GMAIL_WEBHOOK_SECRET || ENV.OPENAI_API_KEY),
+    checks: {
+      GMAIL_WEBHOOK_SECRET: Boolean(ENV.GMAIL_WEBHOOK_SECRET),
+      OPENAI_API_KEY: Boolean(ENV.OPENAI_API_KEY),
+    },
     at: new Date().toISOString(),
+    mode: SPARK_ONLY ? "spark" : "blaze",
   });
 });
 
-// Firestore health (default DB)
+/** Firestore health – read/write a probe doc in DB "leads" */
 export const firestoreHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
   try {
     const { db } = ensureAdmin();
-    const docRef = db.collection("_health").doc("probe");
-    await docRef.set(
+    const ref = db.collection("_health").doc("probe");
+    await ref.set(
       {
         ping: admin.firestore.FieldValue.serverTimestamp(),
         node: process.version,
         projectId: "priority-lead-sync",
+        databaseId: "leads",
       },
       { merge: true }
     );
-    const snap = await docRef.get();
+    const snap = await ref.get();
     res.json({ ok: true, data: snap.data() || null });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e) });
   }
 });
 
-// Gmail health (stubbed, Spark-safe)
+/** Gmail health (stubbed – no OAuth work in Spark) */
 export const gmailHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
-  res.json({ ok: true, note: "gmailHealth stubbed; OAuth verified separately" });
+  res.json({ ok: true, note: "gmailHealth is stubbed for Spark mode" });
 });
 
-// ---------- Webhook: receiveEmailLead (JSON or ADF/XML) ----------
+/**
+ * receiveEmailLead
+ * Auth via x-webhook-secret; accepts JSON or ADF/XML; writes to Firestore (leads_v2)
+ */
 export const receiveEmailLead = onRequest(
-  {
-    region: "us-central1",
-    timeoutSeconds: 30,
-    maxInstances: 10,
-    // ✂️ REMOVE secrets: [...] usage to avoid Secret Manager
-  },
+  { region: "us-central1", timeoutSeconds: 30, maxInstances: 10 },
   async (req, res) => {
+    // cheap auth
     const provided = (req.header("x-webhook-secret") || "").trim();
     const expected = (ENV.GMAIL_WEBHOOK_SECRET || "").trim();
     if (!expected || provided !== expected) {
@@ -91,6 +95,7 @@ export const receiveEmailLead = onRequest(
       if (ct.includes("application/json")) {
         lead = { ...req.body, source: req.body?.source || "webhook", format: "json" };
       } else {
+        // ADF/XML path
         const xml = req.rawBody?.toString("utf8") || "";
         const parsed = await parseStringPromise(xml, { explicitArray: false, trim: true });
         const p = parsed?.adf?.prospect || parsed?.prospect || {};
@@ -126,59 +131,61 @@ export const receiveEmailLead = onRequest(
   }
 );
 
-// ---------- listLeads: public read endpoint with CORS ----------
-export const listLeads = onRequest(
-  { region: "us-central1", timeoutSeconds: 30 },
-  async (req, res) => {
-    try {
-      res.set("Access-Control-Allow-Origin", "*");
-      res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-      res.set("Access-Control-Allow-Headers", "Content-Type");
-      if (req.method === "OPTIONS") return res.status(204).end();
+/**
+ * listLeads – HTTPS GET, CORS enabled, read-only list for Electron polling
+ * Query params:
+ *   - limit=1..100 (default 50)
+ *   - since=ISO date string (optional)
+ */
+export const listLeads = onRequest({ region: "us-central1", timeoutSeconds: 30 }, async (req, res) => {
+  try {
+    // CORS for Electron (file:// origin → 'null'), so keep permissive
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") return res.status(204).end();
 
-      const { db } = ensureAdmin();
+    const { db } = ensureAdmin();
 
-      const limitParam = Math.max(1, Math.min(100, parseInt(String(req.query.limit || "50"), 10)));
-      const sinceParam = String(req.query.since || "").trim();
-      const since = sinceParam ? new Date(sinceParam) : null;
+    const limitParam = Math.max(1, Math.min(100, parseInt(String(req.query.limit || "50"), 10)));
+    const sinceParam = String(req.query.since || "").trim();
+    const since = sinceParam ? new Date(sinceParam) : null;
 
-      let q = db.collection("leads_v2").orderBy("receivedAt", "desc");
-      if (since && !isNaN(since.getTime())) q = q.where("receivedAt", ">", since);
-      q = q.limit(limitParam);
-
-      const snap = await q.get();
-      const items = snap.docs.map((doc) => {
-        const d = doc.data();
-        const ts =
-          typeof d.receivedAt?.toDate === "function"
-            ? d.receivedAt.toDate()
-            : (d.receivedAt && new Date(d.receivedAt)) || null;
-        return {
-          id: doc.id,
-          receivedAt: ts ? ts.toISOString() : null,
-          subject: d.subject || null,
-          vehicle: d.vehicle || null,
-          customer: d.customer || null,
-          source: d.source || null,
-        };
-      });
-
-      return res.json({ ok: true, items });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ ok: false, error: String(err) });
+    let q = db.collection("leads_v2").orderBy("receivedAt", "desc");
+    if (since && !isNaN(since.getTime())) {
+      q = q.where("receivedAt", ">", since);
     }
-  }
-);
+    q = q.limit(limitParam);
 
-// ---------- AI reply stub (Spark-safe; no secrets declaration) ----------
-export const generateAIReply = onRequest(
-  { region: "us-central1", timeoutSeconds: 60 },
-  async (_req, res) => {
-    if (!ENV.OPENAI_API_KEY) {
-      return res.json({ ok: true, msg: "AI reply generator stub (no OPENAI_API_KEY on Spark)." });
-    }
-    // If you later move to Blaze, you can use the real API here.
-    return res.json({ ok: true, msg: "AI reply generator is wired." });
+    const snap = await q.get();
+    const items = snap.docs.map((doc) => {
+      const d = doc.data();
+      const ts =
+        typeof d.receivedAt?.toDate === "function"
+          ? d.receivedAt.toDate()
+          : (d.receivedAt && new Date(d.receivedAt)) || null;
+      return {
+        id: doc.id,
+        receivedAt: ts ? ts.toISOString() : null,
+        subject: d.subject || null,
+        vehicle: d.vehicle || null,
+        customer: d.customer || null,
+        source: d.source || null,
+      };
+    });
+
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, error: String(err) });
   }
-);
+});
+
+/** AI stub – don’t break if key missing; you can wire fetch→openai later */
+export const generateAIReply = onRequest({ region: "us-central1", timeoutSeconds: 60 }, async (_req, res) => {
+  if (!ENV.OPENAI_API_KEY) {
+    return res.status(200).json({ ok: true, stub: true, note: "No OPENAI_API_KEY set; Spark-safe stub." });
+  }
+  // (Optional) In Blaze you can call OpenAI here. In Spark, outbound might be limited.
+  return res.json({ ok: true, note: "OPENAI_API_KEY present. Add outbound call if on Blaze." });
+});
