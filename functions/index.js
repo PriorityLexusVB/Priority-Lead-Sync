@@ -174,7 +174,7 @@ export const listLeads = onRequest({ region: "us-central1", timeoutSeconds: 30 }
 
  codex/update-firebase-functions-for-spark-mode-2k498v
     const limitQuery = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
-    const limitParam = Math.max(1, Math.min(100, parseInt(String(limitQuery || "50"), 10)));
+const limitParam = Math.max(1, Math.min(100, parseInt(limitQuery, 10) || 50));
     const sinceQuery = Array.isArray(req.query.since) ? req.query.since[0] : req.query.since;
     const sinceParam = String(sinceQuery || "").trim();
 
