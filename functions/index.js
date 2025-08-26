@@ -95,6 +95,9 @@ export const receiveEmailLead = functions
       providedBuf.length !== expectedBuf.length ||
       !crypto.timingSafeEqual(providedBuf, expectedBuf)
     ) {
+
+    if (!ENV.GMAIL_WEBHOOK_SECRET || provided !== ENV.GMAIL_WEBHOOK_SECRET) {
+ 
       return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
