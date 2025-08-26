@@ -1,6 +1,7 @@
 import * as functions from "firebase-functions"; // v1 API
 import * as admin from "firebase-admin";
 import { parseStringPromise } from "xml2js";
+import crypto from "crypto";
 
 /**
  * Spark mode:
@@ -84,7 +85,19 @@ export const receiveEmailLead = functions
   .https.onRequest(async (req, res) => {
     // cheap auth
     const provided = (req.header("x-webhook-secret") || "").trim();
+    const expected = ENV.GMAIL_WEBHOOK_SECRET;
+    if (!expected) {
+      return res.status(401).json({ ok: false, error: "Unauthorized: secret not configured." });
+    }
+    const providedBuf = Buffer.from(provided);
+    const expectedBuf = Buffer.from(expected);
+    if (
+      providedBuf.length !== expectedBuf.length ||
+      !crypto.timingSafeEqual(providedBuf, expectedBuf)
+    ) {
+
     if (!ENV.GMAIL_WEBHOOK_SECRET || provided !== ENV.GMAIL_WEBHOOK_SECRET) {
+ 
       return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
