@@ -1,105 +1,91 @@
-import { onRequest } from "firebase-functions/v2/https";
+import * as functions from "firebase-functions"; // v1 API
 import * as admin from "firebase-admin";
-import crypto from "crypto";
 import { parseStringPromise } from "xml2js";
+import crypto from "crypto";
 
 /**
  * Spark mode:
- * - If SPARK_ONLY=1, we DO NOT depend on Secret Manager and read directly from process.env.
- * - Keep Firestore bound to the existing named database "leads" so we don't create default DB.
+ * - No Secret Manager; read from process.env (bundled by Firebase CLI .env support).
+ * - Bind Firestore Admin to the EXISTING named DB "leads" (do NOT touch default).
  */
 const SPARK_ONLY = process.env.SPARK_ONLY === "1";
-
-/** Env values (always read from process.env in Spark mode) */
 const ENV = {
-  GMAIL_WEBHOOK_SECRET: process.env.GMAIL_WEBHOOK_SECRET || "",
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+  GMAIL_WEBHOOK_SECRET: (process.env.GMAIL_WEBHOOK_SECRET || "").trim(),
+  OPENAI_API_KEY: (process.env.OPENAI_API_KEY || "").trim(), // optional
 };
 
-/** Admin init – bind to project + named DB "leads" */
- codex/update-firebase-functions-for-spark-mode-2k498v
-let app;
-let db;
-function ensureAdmin() {
-  if (!app) {
-    app = admin.initializeApp({
-      projectId: "priority-lead-sync",
-    });
-    db = admin.firestore(app);
-    db.settings({ databaseId: "leads" }); // <— IMPORTANT: use existing named DB
-
+// --- Admin init: project + named DB "leads"
 let _app;
 let _db;
 function ensureAdmin() {
   if (!_app) {
-    _app = admin.initializeApp({
-      projectId: "priority-lead-sync",
-    });
+    _app = admin.initializeApp({ projectId: "priority-lead-sync" });
     _db = admin.firestore(_app);
-    _db.settings({ databaseId: "leads" }); // <— IMPORTANT: use existing named DB
- main
+    _db.settings({ databaseId: "leads" }); // <- IMPORTANT
   }
   return { app: _app, db: _db };
 }
 
-/** Health */
-export const health = onRequest({ region: "us-central1" }, (_req, res) => {
-  res.status(200).json({ ok: true, node: process.version, at: new Date().toISOString() });
-});
-
-/** Verify "secrets" (in Spark we just check envs — nothing hits Secret Manager) */
-export const testSecrets = onRequest({ region: "us-central1" }, (_req, res) => {
-  res.json({
-    ok: Boolean(ENV.GMAIL_WEBHOOK_SECRET || ENV.OPENAI_API_KEY),
-    checks: {
-      GMAIL_WEBHOOK_SECRET: Boolean(ENV.GMAIL_WEBHOOK_SECRET),
-      OPENAI_API_KEY: Boolean(ENV.OPENAI_API_KEY),
-    },
-    at: new Date().toISOString(),
-    mode: SPARK_ONLY ? "spark" : "blaze",
+// ---------- health ----------
+export const health = functions
+  .region("us-central1")
+  .https.onRequest((_req, res) => {
+    res.status(200).json({ ok: true, node: process.version, at: new Date().toISOString(), gen: "v1" });
   });
-});
 
-/** Firestore health – read/write a probe doc in DB "leads" */
-export const firestoreHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
-  try {
-    const { db } = ensureAdmin();
-    const ref = db.collection("_health").doc("probe");
-    await ref.set(
-      {
-        ping: admin.firestore.FieldValue.serverTimestamp(),
-        node: process.version,
-        projectId: "priority-lead-sync",
-        databaseId: "leads",
+// ---------- testSecrets (Spark: just env checks) ----------
+export const testSecrets = functions
+  .region("us-central1")
+  .https.onRequest((_req, res) => {
+    res.json({
+      ok: Boolean(ENV.GMAIL_WEBHOOK_SECRET || ENV.OPENAI_API_KEY),
+      checks: {
+        GMAIL_WEBHOOK_SECRET: !!ENV.GMAIL_WEBHOOK_SECRET,
+        OPENAI_API_KEY: !!ENV.OPENAI_API_KEY,
       },
-      { merge: true }
-    );
-    const snap = await ref.get();
-    res.json({ ok: true, data: snap.data() || null });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
-  }
-});
+      mode: SPARK_ONLY ? "spark" : "blaze",
+      at: new Date().toISOString(),
+    });
+  });
 
-/** Gmail health (stubbed – no OAuth work in Spark) */
-export const gmailHealth = onRequest({ region: "us-central1" }, async (_req, res) => {
-  res.json({ ok: true, note: "gmailHealth is stubbed for Spark mode" });
-});
+// ---------- firestoreHealth (writes _health/probe in 'leads') ----------
+export const firestoreHealth = functions
+  .region("us-central1")
+  .https.onRequest(async (_req, res) => {
+    try {
+      const { db } = ensureAdmin();
+      const ref = db.collection("_health").doc("probe");
+      await ref.set(
+        {
+          ping: admin.firestore.FieldValue.serverTimestamp(),
+          node: process.version,
+          projectId: "priority-lead-sync",
+          databaseId: "leads",
+          gen: "v1",
+        },
+        { merge: true }
+      );
+      const snap = await ref.get();
+      res.json({ ok: true, data: snap.data() || null });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: String(e) });
+    }
+  });
 
-/**
- * receiveEmailLead
- * Auth via x-webhook-secret; accepts JSON or ADF/XML; writes to Firestore (leads_v2)
- */
-export const receiveEmailLead = onRequest(
-  { region: "us-central1", timeoutSeconds: 30, maxInstances: 10 },
-  async (req, res) => {
- codex/update-firebase-functions-for-spark-mode-2k498v
-    // cheap auth with timing-safe comparison
+// ---------- gmailHealth (stub) ----------
+export const gmailHealth = functions
+  .region("us-central1")
+  .https.onRequest(async (_req, res) => {
+    res.json({ ok: true, note: "gmailHealth is stubbed for Spark mode", gen: "v1" });
+  });
 
+// ---------- receiveEmailLead (JSON or ADF/XML) ----------
+export const receiveEmailLead = functions
+  .region("us-central1")
+  .https.onRequest(async (req, res) => {
     // cheap auth
- main
     const provided = (req.header("x-webhook-secret") || "").trim();
-    const expected = (ENV.GMAIL_WEBHOOK_SECRET || "").trim();
+    const expected = ENV.GMAIL_WEBHOOK_SECRET;
     if (!expected) {
       return res.status(401).json({ ok: false, error: "Unauthorized: secret not configured." });
     }
@@ -120,8 +106,7 @@ export const receiveEmailLead = onRequest(
       if (ct.includes("application/json")) {
         lead = { ...req.body, source: req.body?.source || "webhook", format: "json" };
       } else {
-        // ADF/XML path
-        const xml = req.rawBody?.toString("utf8") || "";
+        const xml = Buffer.isBuffer(req.rawBody) ? req.rawBody.toString("utf8") : String(req.rawBody || "");
         const parsed = await parseStringPromise(xml, { explicitArray: false, trim: true });
         const p = parsed?.adf?.prospect || parsed?.prospect || {};
         const vehicle = p.vehicle || {};
@@ -147,77 +132,64 @@ export const receiveEmailLead = onRequest(
 
       lead.receivedAt = admin.firestore.FieldValue.serverTimestamp();
       const ref = await db.collection("leads_v2").add(lead);
-
       return res.status(200).json({ ok: true, id: ref.id });
     } catch (err) {
       console.error(err);
       return res.status(400).json({ ok: false, error: "Bad request: " + String(err?.message || err) });
     }
-  }
-);
+  });
 
-/**
- * listLeads – HTTPS GET, CORS enabled, read-only list for Electron polling
- * Query params:
- *   - limit=1..100 (default 50)
- *   - since=ISO date string (optional)
- */
-export const listLeads = onRequest({ region: "us-central1", timeoutSeconds: 30 }, async (req, res) => {
-  try {
-    // CORS for Electron (file:// origin → 'null'), so keep permissive
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
-    if (req.method === "OPTIONS") return res.status(204).end();
+// ---------- listLeads (CORS, read-only) ----------
+export const listLeads = functions
+  .region("us-central1")
+  .https.onRequest(async (req, res) => {
+    try {
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      if (req.method === "OPTIONS") return res.status(204).end();
 
-    const { db } = ensureAdmin();
+      const { db } = ensureAdmin();
 
- codex/update-firebase-functions-for-spark-mode-2k498v
-    const limitQuery = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
-const limitParam = Math.max(1, Math.min(100, parseInt(limitQuery, 10) || 50));
-    const sinceQuery = Array.isArray(req.query.since) ? req.query.since[0] : req.query.since;
-    const sinceParam = String(sinceQuery || "").trim();
+      const limitParam = Math.max(1, Math.min(100, parseInt(String(req.query.limit || "50"), 10)));
+      const sinceParam = String(req.query.since || "").trim();
+      const since = sinceParam ? new Date(sinceParam) : null;
 
-    const limitParam = Math.max(1, Math.min(100, parseInt(String(req.query.limit || "50"), 10)));
-    const sinceParam = String(req.query.since || "").trim();
- main
-    const since = sinceParam ? new Date(sinceParam) : null;
+      let q = db.collection("leads_v2").orderBy("receivedAt", "desc");
+      if (since && !isNaN(since.getTime())) q = q.where("receivedAt", ">", since);
+      q = q.limit(limitParam);
 
-    let q = db.collection("leads_v2").orderBy("receivedAt", "desc");
-    if (since && !isNaN(since.getTime())) {
-      q = q.where("receivedAt", ">", since);
+      const snap = await q.get();
+      const items = snap.docs.map((doc) => {
+        const d = doc.data();
+        const ts =
+          typeof d.receivedAt?.toDate === "function"
+            ? d.receivedAt.toDate()
+            : (d.receivedAt && new Date(d.receivedAt)) || null;
+        return {
+          id: doc.id,
+          receivedAt: ts ? ts.toISOString() : null,
+          subject: d.subject || null,
+          vehicle: d.vehicle || null,
+          customer: d.customer || null,
+          source: d.source || null,
+        };
+      });
+
+      return res.json({ ok: true, items });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ ok: false, error: String(err) });
     }
-    q = q.limit(limitParam);
+  });
 
-    const snap = await q.get();
-    const items = snap.docs.map((doc) => {
-      const d = doc.data();
-      const ts =
-        typeof d.receivedAt?.toDate === "function"
-          ? d.receivedAt.toDate()
-          : (d.receivedAt && new Date(d.receivedAt)) || null;
-      return {
-        id: doc.id,
-        receivedAt: ts ? ts.toISOString() : null,
-        subject: d.subject || null,
-        vehicle: d.vehicle || null,
-        customer: d.customer || null,
-        source: d.source || null,
-      };
-    });
+// ---------- AI stub ----------
+export const generateAIReply = functions
+  .region("us-central1")
+  .https.onRequest(async (_req, res) => {
+    if (!ENV.OPENAI_API_KEY) {
+      return res.status(200).json({ ok: true, stub: true, note: "No OPENAI_API_KEY set; Spark-safe stub.", gen: "v1" });
+    }
+    return res.json({ ok: true, note: "OPENAI_API_KEY present. Add outbound call if on Blaze.", gen: "v1" });
+  });
 
-    return res.json({ ok: true, items });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ ok: false, error: String(err) });
-  }
-});
-
-/** AI stub – don’t break if key missing; you can wire fetch→openai later */
-export const generateAIReply = onRequest({ region: "us-central1", timeoutSeconds: 60 }, async (_req, res) => {
-  if (!ENV.OPENAI_API_KEY) {
-    return res.status(200).json({ ok: true, stub: true, note: "No OPENAI_API_KEY set; Spark-safe stub." });
-  }
-  // (Optional) In Blaze you can call OpenAI here. In Spark, outbound might be limited.
-  return res.json({ ok: true, note: "OPENAI_API_KEY present. Add outbound call if on Blaze." });
-});
