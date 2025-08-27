@@ -1,5 +1,3 @@
 ﻿{
-  "projects": {
-    "default": "priority-lead-sync"
-  }
+  "projects": { "default": "priority-lead-sync" }
 }

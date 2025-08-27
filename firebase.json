@@ -1,6 +1,3 @@
 ﻿{
-  "functions": {
-    "source": "functions",
-    "runtime": "nodejs20"
-  }
+  "functions": { "source": "functions", "runtime": "nodejs20" }
 }
