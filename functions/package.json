@@ -1,15 +1,17 @@
-﻿{
+{
   "name": "priority-lead-sync-functions",
   "private": true,
   "engines": { "node": "20" },
   "main": "index.js",
   "scripts": {
-    "deploy:functions": "firebase deploy --project priority-lead-sync --only functions --non-interactive"
+    "deploy:all": "firebase deploy --project priority-lead-sync --only functions",
+    "deploy:webhook": "firebase deploy --project priority-lead-sync --only functions:receiveEmailLead",
+    "deploy:list": "firebase deploy --project priority-lead-sync --only functions:listLeads",
+    "deploy:health": "firebase deploy --project priority-lead-sync --only functions:health,functions:firestoreHealth,functions:gmailHealth,functions:testSecrets"
   },
   "dependencies": {
-    "firebase-admin":"^12.6.0",
-    "firebase-functions":"^5.1.1",
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^5.1.1",
     "xml2js": "^0.6.2"
   }
 }
-

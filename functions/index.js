@@ -5,8 +5,11 @@ const { parseStringPromise } = require("xml2js");
 /** Spark mode & env */
 const SPARK_ONLY = process.env.SPARK_ONLY === "1";
 const ENV = {
-  GMAIL_WEBHOOK_SECRET: process.env.GMAIL_WEBHOOK_SECRET || "",
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+  // New name first (plain env), fallback to the old (secret-bound) so legacy still works
+  WEBHOOK_SECRET:
+    (process.env.EMAIL_WEBHOOK_SECRET || "").trim() ||
+    (process.env.GMAIL_WEBHOOK_SECRET || "").trim(),
+  OPENAI_API_KEY: (process.env.OPENAI_API_KEY || "").trim(),
 };
 
 /** Admin init — bind to project + named DB 'leads' */
@@ -34,9 +37,10 @@ exports.health = functions.https.onRequest((_req, res) => {
 /** testSecrets (reads env only in Spark mode) */
 exports.testSecrets = functions.https.onRequest((_req, res) => {
   res.json({
-    ok: Boolean(ENV.GMAIL_WEBHOOK_SECRET || ENV.OPENAI_API_KEY),
+    ok: Boolean(ENV.WEBHOOK_SECRET || ENV.OPENAI_API_KEY),
     checks: {
-      GMAIL_WEBHOOK_SECRET: Boolean(ENV.GMAIL_WEBHOOK_SECRET),
+      EMAIL_WEBHOOK_SECRET: Boolean(process.env.EMAIL_WEBHOOK_SECRET),
+      GMAIL_WEBHOOK_SECRET: Boolean(process.env.GMAIL_WEBHOOK_SECRET),
       OPENAI_API_KEY: Boolean(ENV.OPENAI_API_KEY),
     },
     at: new Date().toISOString(),
@@ -73,7 +77,7 @@ exports.gmailHealth = functions.https.onRequest(async (_req, res) => {
 /** receiveEmailLead — x-webhook-secret auth; JSON or ADF/XML */
 exports.receiveEmailLead = functions.https.onRequest(async (req, res) => {
   const provided = (req.header("x-webhook-secret") || "").trim();
-  const expected = (ENV.GMAIL_WEBHOOK_SECRET || "").trim();
+  const expected = ENV.WEBHOOK_SECRET;
   if (!expected || provided !== expected) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
