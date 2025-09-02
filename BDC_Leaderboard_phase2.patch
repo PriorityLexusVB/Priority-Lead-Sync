@@ -1,0 +1,330 @@
+--- a/apps/api/.env.example
++++ b/apps/api/.env.example
+@@ -10,3 +10,6 @@
+ CALLDRIP_API_BASE=https://api.calldrip.com
+ CALLDRIP_API_KEY=
+ CALLDRIP_ACCOUNT_ID=
++
++# JWT for admin auth
++JWT_SECRET=change_me_admin
+--- a/apps/api/package.json
++++ b/apps/api/package.json
+@@ -18,7 +18,8 @@
+     "pino": "^9.2.0",
+     "pino-pretty": "^11.2.2",
+     "zod": "^3.23.8",
+-    "dotenv": "^16.4.5"
++    "dotenv": "^16.4.5",
++    "jsonwebtoken": "^9.0.2"
+   },
+   "devDependencies": {
+     "prisma": "^5.17.0",
+--- a/apps/api/prisma/schema.prisma
++++ b/apps/api/prisma/schema.prisma
+@@ -74,3 +74,29 @@
+   badge_id    Int
+   date_earned DateTime @default(now())
+ }
++
++
++model Challenge {
++  id          Int              @id @default(autoincrement())
++  name        String
++  description String?
++  start_at    DateTime
++  end_at      DateTime
++  rule_filter Json?            // optional rule/segment filter
++  is_active   Boolean          @default(true)
++  created_at  DateTime         @default(now())
++  entries     ChallengeEntry[]
++}
++
++model ChallengeEntry {
++  id          Int       @id @default(autoincrement())
++  challenge   Challenge @relation(fields: [challenge_id], references: [id])
++  challenge_id Int
++  agent       Agent     @relation(fields: [agent_id], references: [id])
++  agent_id    String
++  points      Int       @default(0)
++  rank        Int?
++  snapshot    Boolean   @default(false)
++  created_at  DateTime  @default(now())
++  updated_at  DateTime  @updatedAt
++}
+--- a/apps/api/prisma/seed.ts
++++ b/apps/api/prisma/seed.ts
+@@ -25,3 +25,14 @@
+ }
+ 
+ main().finally(() => prisma.$disconnect());
++
++
++  // Starter challenge (this week)
++  const now = new Date();
++  const start = new Date(now); start.setDate(start.getDate() - ((start.getDay()+6)%7)); // Monday
++  const end = new Date(start); end.setDate(end.getDate() + 7);
++  await prisma.challenge.upsert({
++    where: { id: 1 },
++    update: { name: 'Weekly Points Race', start_at: start, end_at: end, is_active: true },
++    create: { name: 'Weekly Points Race', start_at: start, end_at: end, is_active: true }
++  });
+--- a/apps/api/src/index.ts
++++ b/apps/api/src/index.ts
+@@ -5,6 +5,7 @@
+ import { leaderboard } from './routes/leaderboard';
+ import { agents } from './routes/agents';
+ import { admin } from './routes/admin';
++import { challenges } from './routes/challenges';
+ 
+ const app = express();
+ const origins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173'];
+@@ -16,6 +17,7 @@
+ app.use('/api/leaderboard', leaderboard);
+ app.use('/api/agents', agents);
+ app.use('/api/admin', admin);
++app.use('/api/challenges', challenges);
+ 
+ app.use((err: any, _req: any, res: any, _next: any) => {
+   console.error(err);
+--- a/apps/api/src/jobs/notify.ts
++++ b/apps/api/src/jobs/notify.ts
+@@ -0,0 +1,18 @@
++import { PrismaClient } from '@prisma/client';
++const prisma = new PrismaClient();
++
++// Placeholder: build summary for winners (Slack/Email integration can be added)
++export async function weeklyWinnersDigest() {
++  const lastWeek = new Date();
++  lastWeek.setDate(lastWeek.getDate() - 7);
++  const rows: any[] = await prisma.$queryRawUnsafe(`
++    SELECT a.id, a.first_name, a.last_name, SUM(pl.points_awarded) AS points
++    FROM "PointsLog" pl
++    JOIN "Agent" a ON a.id = pl.agent_id
++    WHERE pl."timestamp" >= $1
++    GROUP BY a.id, a.first_name, a.last_name
++    ORDER BY points DESC
++    LIMIT 5;
++  `, lastWeek);
++  return rows;
++}
+--- a/apps/api/src/routes/admin.ts
++++ b/apps/api/src/routes/admin.ts
+@@ -4,8 +4,10 @@
+ 
+ export const admin = Router();
+ const prisma = new PrismaClient();
++import { requireManager } from '../utils/auth';
+ 
+-// TODO: add JWT manager auth middleware
++admin.use(requireManager);
++
+ admin.put('/rules', async (req, res) => {
+   const rules = req.body as { event_type: string; points_value: number; description?: string; is_active?: boolean }[];
+   const tx = await prisma.$transaction(
+@@ -24,3 +26,42 @@
+     res.json({ ok: true });
+   } catch (e) { next(e); }
+ });
++
++
++admin.post('/challenges', async (req, res) => {
++  const { name, description, start_at, end_at, rule_filter } = req.body || {};
++  if (!name || !start_at || !end_at) return res.status(400).json({ error: 'name, start_at, end_at required' });
++  const ch = await prisma.challenge.create({ data: { name, description, start_at: new Date(start_at), end_at: new Date(end_at), rule_filter: rule_filter || null, is_active: true } });
++  res.json(ch);
++});
++
++admin.put('/challenges/:id', async (req, res) => {
++  const id = Number(req.params.id);
++  const { name, description, start_at, end_at, is_active } = req.body || {};
++  const ch = await prisma.challenge.update({ where: { id }, data: { name, description, start_at: start_at? new Date(start_at): undefined, end_at: end_at? new Date(end_at): undefined, is_active } });
++  res.json(ch);
++});
++
++admin.post('/challenges/:id/close', async (req, res) => {
++  const id = Number(req.params.id);
++  const ch = await prisma.challenge.findUnique({ where: { id } });
++  if (!ch) return res.status(404).json({ error: 'not found' });
++  // Snapshot final standings into ChallengeEntry
++  const rows: any[] = await prisma.$queryRawUnsafe(`
++    SELECT a.id as agent_id, COALESCE(SUM(pl.points_awarded),0) AS points
++    FROM "Agent" a
++    LEFT JOIN "PointsLog" pl ON pl.agent_id = a.id AND pl."timestamp" BETWEEN $1 AND $2
++    GROUP BY a.id
++    ORDER BY points DESC;
++  `, ch.start_at, ch.end_at);
++  // assign ranks
++  let rank = 1;
++  for (const r of rows) {
++    await prisma.challengeEntry.create({
++      data: { challenge_id: id, agent_id: r.agent_id, points: Number(r.points||0), rank, snapshot: true }
++    });
++    rank += 1;
++  }
++  await prisma.challenge.update({ where: { id }, data: { is_active: false } });
++  res.json({ ok: true, entries: rows.length });
++});
+--- a/apps/api/src/routes/challenges.ts
++++ b/apps/api/src/routes/challenges.ts
+@@ -0,0 +1,28 @@
++import { Router } from 'express';
++import { PrismaClient } from '@prisma/client';
++import dayjs from 'dayjs';
++
++export const challenges = Router();
++const prisma = new PrismaClient();
++
++// Public: list active challenges + computed standings
++challenges.get('/active', async (_req, res) => {
++  const now = new Date();
++  const active = await prisma.challenge.findMany({
++    where: { is_active: true, start_at: { lte: now }, end_at: { gte: now } }
++  });
++  // For each challenge, compute leaderboard by summing PointsLog between start/end
++  const result = [];
++  for (const ch of active) {
++    const rows: any[] = await prisma.$queryRawUnsafe(`
++      SELECT a.id, a.first_name, a.last_name, COALESCE(SUM(pl.points_awarded),0) AS points
++      FROM "Agent" a
++      LEFT JOIN "PointsLog" pl ON pl.agent_id = a.id AND pl."timestamp" BETWEEN $1 AND $2
++      GROUP BY a.id, a.first_name, a.last_name
++      ORDER BY points DESC
++      LIMIT 50;
++    `, ch.start_at, ch.end_at);
++    result.push({ challenge: ch, standings: rows });
++  }
++  res.json(result);
++});
+--- a/apps/api/src/utils/auth.ts
++++ b/apps/api/src/utils/auth.ts
+@@ -9,3 +9,25 @@
+     throw err;
+   }
+ }
++
++
++import jwt from 'jsonwebtoken';
++import type { Request, Response, NextFunction } from 'express';
++
++export function requireManager(req: Request, res: Response, next: NextFunction) {
++  try {
++    const auth = req.header('Authorization') || '';
++    const token = auth.startsWith('Bearer ') ? auth.slice(7) : (req.query.token as string | undefined);
++    if (!token) return res.status(401).json({ error: 'Missing token' });
++    const secret = process.env.JWT_SECRET;
++    if (!secret) return res.status(500).json({ error: 'Server JWT not configured' });
++    const payload = jwt.verify(token, secret) as any;
++    if (!payload?.role || payload.role !== 'manager') {
++      return res.status(403).json({ error: 'Forbidden' });
++    }
++    (req as any).manager = payload;
++    next();
++  } catch (e: any) {
++    return res.status(401).json({ error: 'Invalid token' });
++  }
++}
+--- a/apps/web/src/components/Badge.tsx
++++ b/apps/web/src/components/Badge.tsx
+@@ -0,0 +1,7 @@
++export default function Badge({ name }: { name: string }){
++  return (
++    <span style={{display:'inline-block', padding:'4px 8px', borderRadius:999, background:'#eef2ff', fontSize:12, fontWeight:600, marginRight:8}}>
++      {name}
++    </span>
++  );
++}
+--- a/apps/web/src/lib/api.ts
++++ b/apps/web/src/lib/api.ts
+@@ -11,3 +11,10 @@
+   if (!res.ok) throw new Error('Failed to load dashboard');
+   return res.json();
+ }
++
++
++export async function getActiveChallenges() {
++  const res = await fetch(`${API_BASE}/challenges/active`);
++  if (!res.ok) throw new Error('Failed to load challenges');
++  return res.json();
++}
+--- a/apps/web/src/pages/Challenges.tsx
++++ b/apps/web/src/pages/Challenges.tsx
+@@ -0,0 +1,45 @@
++import { useQuery } from '@tanstack/react-query';
++import { getActiveChallenges } from '../lib/api';
++
++export default function Challenges(){
++  const { data, isLoading, isError } = useQuery({ queryKey: ['challenges','active'], queryFn: getActiveChallenges });
++  if (isLoading) return <div style={{padding:16}}>Loading…</div>;
++  if (isError) return <div style={{padding:16}}>Failed to load challenges.</div>;
++  return (
++    <div style={{maxWidth:1000, margin:'16px auto', padding:'0 16px'}}>
++      <h2 style={{fontSize:22, fontWeight:700, margin:'8px 0 12px'}}>Active Challenges</h2>
++      {data?.length ? data.map((c: any) => (
++        <div key={c.challenge.id} style={{background:'#fff', borderRadius:16, boxShadow:'0 1px 4px rgba(0,0,0,0.06)', marginBottom:16}}>
++          <div style={{padding:16}}>
++            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
++              <div>
++                <div style={{fontWeight:700, fontSize:18}}>{c.challenge.name}</div>
++                <div style={{opacity:0.7, fontSize:13}}>{new Date(c.challenge.start_at).toLocaleString()} → {new Date(c.challenge.end_at).toLocaleString()}</div>
++              </div>
++            </div>
++          </div>
++          <div style={{padding:'0 16px 16px'}}>
++            <table style={{width:'100%'}}>
++              <thead>
++                <tr style={{borderBottom:'1px solid #eee'}}>
++                  <th style={{textAlign:'left', padding:'8px 0'}}>Rank</th>
++                  <th style={{textAlign:'left'}}>Agent</th>
++                  <th style={{textAlign:'left'}}>Points</th>
++                </tr>
++              </thead>
++              <tbody>
++                {c.standings.map((row: any, idx: number) => (
++                  <tr key={row.id} style={{borderBottom:'1px solid #f2f2f2'}}>
++                    <td style={{padding:'8px 0', fontWeight:600}}>{idx+1}</td>
++                    <td>{row.first_name} {row.last_name}</td>
++                    <td style={{fontWeight:700}}>{row.points}</td>
++                  </tr>
++                ))}
++              </tbody>
++            </table>
++          </div>
++        </div>
++      )) : <div style={{padding:16, background:'#fff', borderRadius:16}}>No active challenges.</div>}
++    </div>
++  );
++}
+--- a/apps/web/src/pages/Dashboard.tsx
++++ b/apps/web/src/pages/Dashboard.tsx
+@@ -7,9 +7,30 @@
+         <div><Leaderboard/></div>
+         <div style={{padding:16, background:'#fff', borderRadius:16, boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}>
+           <h3 style={{fontSize:18, fontWeight:700, marginBottom:8}}>Active Challenges</h3>
+-          <p style={{opacity:0.7, margin:0}}>Manager-created challenges with live progress (coming in Phase 2).</p>
++          <ActiveChallengesCompact/>
+         </div>
+       </div>
+     </div>
+   );
+ }
++
++
++import { useQuery } from '@tanstack/react-query';
++import { getActiveChallenges } from '../lib/api';
++
++function ActiveChallengesCompact(){
++  const { data } = useQuery({ queryKey: ['challenges','active'], queryFn: getActiveChallenges });
++  if (!data?.length) return <p style={{opacity:0.7, margin:0}}>No active challenges.</p>;
++  const first = data[0];
++  return (
++    <div>
++      <div style={{fontWeight:700}}>{first.challenge.name}</div>
++      <div style={{opacity:0.7, fontSize:12, marginBottom:8}}>{new Date(first.challenge.start_at).toLocaleDateString()} → {new Date(first.challenge.end_at).toLocaleDateString()}</div>
++      <ol style={{paddingLeft:16, margin:0}}>
++        {first.standings.slice(0,5).map((r:any, i:number) => (
++          <li key={r.id} style={{marginBottom:4}}>{i+1}. {r.first_name} {r.last_name} — <b>{r.points}</b></li>
++        ))}
++      </ol>
++    </div>
++  );
++}
